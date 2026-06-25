@@ -160,8 +160,6 @@ def init_admin_router(database, config):
         """
         Export aggregated data as CSV or Excel file.
         """
-        from fastapi import Query
-
         # Get the data
         data = database.get_export_data(app_id=app_id, week_id=week_id)
 
@@ -192,7 +190,9 @@ def init_admin_router(database, config):
             output.close()
 
             # Write to temp file
-            temp_path = Path("/var/folders/j1/4x5ltz4x1dn33nzl6l_4dpt80000gn/T/opencode/export.csv")
+            import tempfile
+            temp_path = Path(tempfile.gettempdir()) / "opencode" / "export.csv"
+            temp_path.parent.mkdir(parents=True, exist_ok=True)
             temp_path.write_text(csv_content)
 
             return FileResponse(
@@ -229,7 +229,9 @@ def init_admin_router(database, config):
                     for row in data['health_checks']:
                         ws.append(list(row.values()))
 
-                temp_path = Path("/var/folders/j1/4x5ltz4x1dn33nzl6l_4dpt80000gn/T/opencode/export.xlsx")
+                import tempfile
+                temp_path = Path(tempfile.gettempdir()) / "opencode" / "export.xlsx"
+                temp_path.parent.mkdir(parents=True, exist_ok=True)
                 wb.save(str(temp_path))
 
                 return FileResponse(

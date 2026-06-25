@@ -230,6 +230,8 @@ class MCPManager:
         self._clients: Dict[str, MCPClient] = {}
 
     async def connect(self, app_id: str, app_config: Dict) -> MCPClient:
+        if app_id in self._clients:
+            await self.disconnect(app_id)
         client = MCPClient()
         transport = app_config.get("transport", "stdio")
 

@@ -57,7 +57,6 @@ def init_usage_router(database, config):
         if year is None or week is None:
             now = datetime.now()
             year, week, _ = now.isocalendar()
-            year = now.year
 
         exports_dir = Path(config.get('exports_dir', 'exports'))
         exports_dir.mkdir(parents=True, exist_ok=True)

@@ -276,6 +276,44 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
         if not app_config:
             raise HTTPException(status_code=404, detail=f"App {app_id} not found")
 
+        if _is_mcp_app(app_config):
+            return await _restart_mcp_app(app_id, app_config)
+        else:
+            return await _restart_regular_app(app_id, app_config)
+
+    async def _restart_mcp_app(app_id: str, app_config: Dict):
+        try:
+            if mcp_manager is None:
+                raise RuntimeError("MCP manager not available")
+
+            active_session = database.get_active_session(app_id)
+            if active_session:
+                database.end_session(active_session['id'], exit_code=-1, crash_detected=True)
+
+            await mcp_manager.disconnect(app_id)
+            client = await mcp_manager.connect(app_id, app_config)
+
+            database.start_session(
+                app_id=app_id,
+                machine_id=config.get_machine_id(),
+                user_alias=config.get_user_alias(),
+                app_version=app_config.get('version')
+            )
+
+            logger.info(f"Restarted MCP app {app_id} with {len(client.tools)} tools")
+
+            return {
+                "success": True,
+                "message": f"Restarted MCP app {app_id}",
+                "app_id": app_id,
+                "tool_count": len(client.tools),
+                "mcp_status": client.status,
+            }
+        except Exception as e:
+            logger.warning(f"Failed to restart MCP app {app_id}: {e}")
+            return {"success": False, "message": str(e), "app_id": app_id}
+
+    async def _restart_regular_app(app_id: str, app_config: Dict):
         active_session = database.get_active_session(app_id)
 
         exe_path = app_config.get('exe', '')

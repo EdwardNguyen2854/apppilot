@@ -147,23 +147,7 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_app_id ON usage_events(app_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON usage_events(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_app_id ON process_metrics(app_id)")
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS mcp_invocations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    app_id TEXT NOT NULL,
-                    tool_name TEXT NOT NULL,
-                    arguments TEXT,
-                    started_at TEXT NOT NULL,
-                    duration_ms INTEGER,
-                    success INTEGER NOT NULL DEFAULT 1,
-                    result_summary TEXT,
-                    error_message TEXT,
-                    FOREIGN KEY (app_id) REFERENCES apps(app_id)
-                )
-            """)
-
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_health_app_id ON health_checks(app_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcp_invocations_app_id ON mcp_invocations(app_id)")
 
             conn.commit()
             logger.info("Database initialized with all tables")
@@ -315,10 +299,7 @@ class Database:
 
     def get_weekly_export_data(self, year: int, week: int) -> Dict[str, Any]:
         """Get all data for a specific week for export."""
-        jan_1 = datetime(year, 1, 1)
-        week_start = jan_1 + timedelta(weeks=week - 1)
-        while week_start.weekday() != 0:
-            week_start -= timedelta(days=1)
+        week_start = datetime.strptime(f'{year}-W{week:02d}-1', '%G-W%V-%u')
         week_end = week_start + timedelta(days=7)
 
         with self.get_connection() as conn:
