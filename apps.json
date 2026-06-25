@@ -1,0 +1,57 @@
+[
+  {
+    "id": "file-preview",
+    "name": "File Preview",
+    "type": "web",
+    "description": "Local file preview server for viewing documents, images, and other files in browser",
+    "exe": "apps/file-preview/FilePreview.exe",
+    "args": ["--port", "8787"],
+    "port": 8787,
+    "url": "http://127.0.0.1:8787",
+    "health_url": "http://127.0.0.1:8787/health",
+    "auto_start": true,
+    "log_file": "logs/FilePreview.log",
+    "monitor": {
+      "process": true,
+      "port": true,
+      "http": true,
+      "cpu_ram": true,
+      "events": true
+    }
+  },
+  {
+    "id": "clipboard-overlay",
+    "name": "Clipboard Overlay",
+    "type": "desktop",
+    "description": "Desktop clipboard monitoring tool with overlay display",
+    "exe": "apps/clipboard-overlay/ClipboardOverlay.exe",
+    "args": [],
+    "auto_start": false,
+    "log_file": "logs/ClipboardOverlay.log",
+    "monitor": {
+      "process": true,
+      "port": false,
+      "http": false,
+      "cpu_ram": true,
+      "events": true
+    }
+  },
+  {
+    "id": "lm-studio",
+    "name": "LM Studio",
+    "type": "external",
+    "description": "Local LLM model server for AI inference",
+    "port": 1234,
+    "url": "http://127.0.0.1:1234/v1/models",
+    "health_url": "http://127.0.0.1:1234/v1/models",
+    "auto_start": false,
+    "log_file": "logs/LMStudio.log",
+    "monitor": {
+      "process": false,
+      "port": true,
+      "http": true,
+      "cpu_ram": false,
+      "events": false
+    }
+  }
+]

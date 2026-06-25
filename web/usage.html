@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usage Statistics - AppPilot</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🚀</span>
+                    <h1>AppPilot</h1>
+                </div>
+                <div class="header-nav">
+                    <a href="/web/index.html" class="btn btn-link">← Dashboard</a>
+                    <a href="/web/apps.html" class="btn btn-link">Apps</a>
+                    <a href="/web/export.html" class="btn btn-link">Export</a>
+                    <a href="/web/settings.html" class="btn btn-link">Settings</a>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h2>📊 Usage Statistics</h2>
+                <div class="time-range-selector">
+                    <label>Time Range:</label>
+                    <select id="time-range" onchange="loadUsageData()">
+                        <option value="7">Last 7 days</option>
+                        <option value="14">Last 14 days</option>
+                        <option value="30">Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="usage-summary" id="usage-summary">
+                <div class="summary-stats">
+                    <div class="stat-box">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-sessions">--</div>
+                            <div class="stat-label">Total Sessions</div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-runtime">--</div>
+                            <div class="stat-label">Total Runtime</div>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-events">--</div>
+                            <div class="stat-label">Usage Events</div>
+                        </div>
+                    </div>
+                    <div class="stat-box error">
+                        <div class="stat-icon">💥</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-crashes">--</div>
+                            <div class="stat-label">Crashes Detected</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3>Session Count by App</h3>
+                    <canvas id="sessions-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Runtime by App</h3>
+                    <canvas id="runtime-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Usage by App Table -->
+            <section class="usage-table-section">
+                <h3>📋 Usage by Application</h3>
+                <table class="usage-table" id="usage-table">
+                    <thead>
+                        <tr>
+                            <th>App</th>
+                            <th>Sessions</th>
+                            <th>Total Runtime</th>
+                            <th>Avg Session</th>
+                            <th>Crashes</th>
+                            <th>Events</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usage-table-body">
+                        <tr>
+                            <td colspan="6" class="loading-cell">
+                                <div class="loading-spinner">
+                                    <div class="spinner"></div>
+                                    <span>Loading usage data...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Recent Events -->
+            <section class="recent-events-section">
+                <h3>📝 Recent Usage Events</h3>
+                <div class="events-list" id="events-list">
+                    <p class="text-muted">Loading events...</p>
+                </div>
+            </section>
+
+            <!-- Health Check History -->
+            <section class="health-section">
+                <h3>🏥 Health Check History</h3>
+                <div id="health-summary" class="health-summary">
+                    <p class="text-muted">Loading health data...</p>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>AppPilot v1.0.0 | <a href="/web/index.html">Back to Dashboard</a></p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let sessionsChart = null;
+        let runtimeChart = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsageData();
+        });
+
+        function loadUsageData() {
+            const days = parseInt(document.getElementById('time-range').value);
+
+            // Load summary
+            fetch(`/api/usage/summary?days=${days}`)
+                .then(r => r.json())
+                .then(data => {
+                    updateSummaryStats(data.totals);
+                    updateUsageTable(data.by_app, data.events_by_app);
+                    renderCharts(data.by_app);
+                })
+                .catch(err => console.error('Failed to load usage summary:', err));
+
+            // Load events
+            fetch('/api/usage/events?limit=50')
+                .then(r => r.json())
+                .then(data => {
+                    renderEventsList(data.events);
+                })
+                .catch(err => console.error('Failed to load events:', err));
+        }
+
+        function updateSummaryStats(totals) {
+            document.getElementById('total-sessions').textContent = totals.sessions || 0;
+            document.getElementById('total-runtime').textContent = formatDuration(totals.runtime_sec || 0);
+            document.getElementById('total-events').textContent = totals.events || 0;
+            document.getElementById('total-crashes').textContent = totals.crashes || 0;
+        }
+
+        function updateUsageTable(sessions, events) {
+            const tbody = document.getElementById('usage-table-body');
+
+            if (!sessions || sessions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No usage data for this period</td></tr>';
+                return;
+            }
+
+            // Create events lookup
+            const eventsByApp = {};
+            events.forEach(e => {
+                eventsByApp[e.app_id] = e.event_count;
+            });
+
+            tbody.innerHTML = sessions.map(s => {
+                const avgSession = s.session_count > 0 && s.total_runtime
+                    ? Math.round(s.total_runtime / s.session_count)
+                    : 0;
+
+                return `
+                    <tr>
+                        <td><span class="app-tag">${escapeHtml(s.app_id)}</span></td>
+                        <td>${s.session_count}</td>
+                        <td>${formatDuration(s.total_runtime || 0)}</td>
+                        <td>${formatDuration(avgSession)}</td>
+                        <td>${s.crash_count || 0}</td>
+                        <td>${eventsByApp[s.app_id] || 0}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderCharts(data) {
+            const ctx1 = document.getElementById('sessions-chart').getContext('2d');
+            const ctx2 = document.getElementById('runtime-chart').getContext('2d');
+
+            const labels = data.map(d => d.app_id);
+            const sessionData = data.map(d => d.session_count || 0);
+            const runtimeData = data.map(d => Math.round((d.total_runtime || 0) / 60)); // in minutes
+
+            if (sessionsChart) sessionsChart.destroy();
+            if (runtimeChart) runtimeChart.destroy();
+
+            sessionsChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sessions',
+                        data: sessionData,
+                        backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                        borderColor: 'rgba(52, 152, 219, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            runtimeChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: runtimeData,
+                        backgroundColor: [
+                            'rgba(46, 204, 113, 0.7)',
+                            'rgba(52, 152, 219, 0.7)',
+                            'rgba(155, 89, 182, 0.7)',
+                            'rgba(231, 76, 60, 0.7)',
+                            'rgba(241, 196, 15, 0.7)',
+                            'rgba(26, 188, 156, 0.7)'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'right' }
+                    }
+                }
+            });
+        }
+
+        function renderEventsList(events) {
+            const container = document.getElementById('events-list');
+
+            if (!events || events.length === 0) {
+                container.innerHTML = '<p class="text-muted">No events recorded</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="events-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>App</th>
+                            <th>Event</th>
+                            <th>Success</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${events.slice(0, 30).map(e => `
+                            <tr class="${e.success ? '' : 'error-row'}">
+                                <td>${formatDateTime(e.timestamp)}</td>
+                                <td><span class="app-tag">${escapeHtml(e.app_id)}</span></td>
+                                <td><code>${escapeHtml(e.event_name)}</code></td>
+                                <td>
+                                    <span class="status-badge ${e.success ? 'success' : 'error'}">
+                                        ${e.success ? 'OK' : 'Failed'}
+                                    </span>
+                                </td>
+                                <td class="details-cell">${e.details_json ? formatDetails(e.details_json) : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function formatDetails(detailsJson) {
+            try {
+                const details = typeof detailsJson === 'string' ? JSON.parse(detailsJson) : detailsJson;
+                const keys = Object.keys(details).slice(0, 3);
+                return keys.map(k => `${k}: ${details[k]}`).join(', ');
+            } catch {
+                return '-';
+            }
+        }
+
+        function formatDateTime(ts) {
+            if (!ts) return '-';
+            const d = new Date(ts);
+            return d.toLocaleString();
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds || seconds === 0) return '0s';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            if (h > 0) return `${h}h ${m}m`;
+            if (m > 0) return `${m}m`;
+            return `${seconds}s`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .time-range-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .time-range-selector select {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-color);
+        }
+
+        .usage-summary {
+            margin-bottom: 2rem;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-box {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-box.error { border-left: 3px solid var(--error-color); }
+
+        .stat-icon {
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .chart-container h3 {
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .usage-table-section, .recent-events-section, .health-section {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .usage-table-section h3, .recent-events-section h3, .health-section h3 {
+            margin-bottom: 1rem;
+        }
+
+        .usage-table, .events-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .usage-table th, .usage-table td,
+        .events-table th, .events-table td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .usage-table th, .events-table th {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .loading-cell, .empty-cell {
+            text-align: center;
+            padding: 2rem !important;
+            color: var(--text-muted);
+        }
+
+        code {
+            background: var(--bg-tertiary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .error-row {
+            background: rgba(231, 76, 60, 0.05);
+        }
+
+        .details-cell {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</body>
+</html>

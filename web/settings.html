@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - AppPilot</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🚀</span>
+                    <h1>AppPilot</h1>
+                </div>
+                <div class="header-nav">
+                    <a href="/web/index.html" class="btn btn-link">← Dashboard</a>
+                    <a href="/web/apps.html" class="btn btn-link">Apps</a>
+                    <a href="/web/mcp.html" class="btn btn-link">MCP Tools</a>
+                    <a href="/web/usage.html" class="btn btn-link">Usage</a>
+                    <a href="/web/export.html" class="btn btn-link">Export</a>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <h2>⚙️ Settings</h2>
+
+            <!-- General Settings -->
+            <section class="settings-section">
+                <h3>🔧 General</h3>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Machine ID</label>
+                        <p class="setting-description">Unique identifier for this machine in exports</p>
+                    </div>
+                    <div class="setting-value">
+                        <code id="machine-id">Loading...</code>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>User Alias</label>
+                        <p class="setting-description">Hostname or alias used in usage reports</p>
+                    </div>
+                    <div class="setting-value">
+                        <code id="user-alias">Loading...</code>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Server Port</label>
+                        <p class="setting-description">Port for the main AppPilot dashboard</p>
+                    </div>
+                    <div class="setting-value">
+                        <span class="mono">9700</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- App Configuration -->
+            <section class="settings-section">
+                <h3>📦 App Configuration</h3>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Configuration File</label>
+                        <p class="setting-description">Location of apps.json</p>
+                    </div>
+                    <div class="setting-value">
+                        <code>apps.json</code>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Configured Apps</label>
+                        <p class="setting-description">Number of apps in configuration</p>
+                    </div>
+                    <div class="setting-value">
+                        <span id="app-count">--</span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Data Directory</label>
+                        <p class="setting-description">Where usage.db is stored</p>
+                    </div>
+                    <div class="setting-value">
+                        <code>data/</code>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Management -->
+            <section class="settings-section">
+                <h3>💾 Data Management</h3>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Database Size</label>
+                        <p class="setting-description">Current size of usage database</p>
+                    </div>
+                    <div class="setting-value">
+                        <span id="db-size">Calculating...</span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Data Retention</label>
+                        <p class="setting-description">How long to keep usage data (days)</p>
+                    </div>
+                    <div class="setting-value">
+                        <span>90 days</span>
+                    </div>
+                </div>
+
+                <div class="setting-actions">
+                    <button class="btn btn-warning" onclick="clearOldData()">🗑️ Clear Old Data</button>
+                    <button class="btn btn-danger" onclick="resetDatabase()">⚠️ Reset Database</button>
+                </div>
+            </section>
+
+            <!-- About -->
+            <section class="settings-section">
+                <h3>ℹ️ About</h3>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Version</label>
+                    </div>
+                    <div class="setting-value">
+                        <span>1.0.0</span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Tech Stack</label>
+                    </div>
+                    <div class="setting-value">
+                        <span>Python FastAPI + SQLite + HTMX</span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Documentation</label>
+                    </div>
+                    <div class="setting-value">
+                        <span>See PROJECT.md for full details</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>AppPilot v1.0.0 | <a href="/web/index.html">Back to Dashboard</a></p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSettings();
+        });
+
+        function loadSettings() {
+            // Load config from API
+            fetch('/api/config')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('machine-id').textContent = data.machine_id || 'Unknown';
+                    document.getElementById('user-alias').textContent = data.user_alias || 'Unknown';
+                    document.getElementById('db-size').textContent = data.db_size || 'Calculating...';
+                })
+                .catch(err => {
+                    console.error('Failed to load config:', err);
+                    // Fallback to health endpoint
+                    fetch('/health')
+                        .then(r => r.json())
+                        .then(data => {
+                            document.getElementById('machine-id').textContent = ' unavailable';
+                            document.getElementById('user-alias').textContent = ' unavailable';
+                        });
+                });
+
+            // Load app count
+            fetch('/api/apps')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('app-count').textContent = data.total || 0;
+                })
+                .catch(err => {
+                    document.getElementById('app-count').textContent = '0';
+                });
+        }
+
+        function clearOldData() {
+            if (confirm('This will remove usage data older than 90 days. Continue?')) {
+                fetch('/api/usage/data?days=90', { method: 'DELETE' })
+                    .then(r => r.json())
+                    .then(data => {
+                        showNotification('success', `Cleared ${data.deleted || 0} old records`);
+                    })
+                    .catch(err => {
+                        showNotification('error', 'Failed to clear old data');
+                        console.error(err);
+                    });
+            }
+        }
+
+        function resetDatabase() {
+            if (confirm('⚠️ WARNING: This will delete ALL usage data and cannot be undone!\n\nAre you absolutely sure?')) {
+                if (confirm('This is your final warning. Type "RESET" to confirm.')) {
+                    fetch('/api/usage/reset', { method: 'POST' })
+                        .then(r => r.json())
+                        .then(data => {
+                            showNotification('success', data.message || 'Database reset complete');
+                        })
+                        .catch(err => {
+                            showNotification('error', 'Failed to reset database');
+                            console.error(err);
+                        });
+                }
+            }
+        }
+
+        function showNotification(type, message) {
+            const existing = document.querySelector('.notification');
+            if (existing) existing.remove();
+
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.innerHTML = `<span>${escapeHtml(message)}</span>`;
+            document.body.appendChild(notification);
+
+            setTimeout(() => notification.classList.add('show'), 10);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+
+    <style>
+        .settings-section {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .settings-section h3 {
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-info label {
+            font-weight: 500;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .setting-description {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .setting-value {
+            text-align: right;
+        }
+
+        code {
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .mono {
+            font-family: monospace;
+        }
+
+        .setting-actions {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+        }
+    </style>
+</body>
+</html>
