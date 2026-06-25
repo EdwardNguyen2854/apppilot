@@ -1,0 +1,41 @@
+# Apple Double files
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Data files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+
+# Logs
+logs/
+*.log
+
+# Build
+dist/
+build/
+*.spec
+PyInstaller/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Scratch
+.scratch/
+
+# Env
+.env
+.env.local
