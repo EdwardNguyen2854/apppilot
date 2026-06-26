@@ -45,6 +45,7 @@
         <div class="status-item"><span class="status-label">Tools</span><span id="mcp-tool-count" class="status-value">0</span></div>
         <div class="status-item"><span class="status-label">Resources</span><span id="mcp-resource-count" class="status-value">0</span></div>
         <div class="status-item"><span class="status-label">Prompts</span><span id="mcp-prompt-count" class="status-value">0</span></div>
+        <div class="status-item"><span class="status-label">Recent Calls</span><span id="mcp-recent-count" class="status-value">0</span></div>
         <div class="status-item"><span class="status-label">Initialized</span><span id="mcp-initialized-at" class="status-value">--</span></div>
       </div>
 
@@ -64,6 +65,21 @@
       <div id="tab-prompts" class="tab-content">
         <div id="prompts-grid" class="mcp-items-grid"><p class="text-muted">No prompts discovered.</p></div>
       </div>
+
+      <section id="history-section" class="mcp-history-section" style="display:none">
+        <div class="section-header">
+          <h3>Invocation History</h3>
+          <button class="btn btn-sm btn-secondary" onclick="loadMCPHistory(currentServerId)">Refresh</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Time</th><th>Tool</th><th>Duration</th><th>Status</th><th>Args</th><th>Result</th></tr></thead>
+            <tbody id="mcp-history-body">
+              <tr><td colspan="6" class="empty-cell">Select a server to view history.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -74,6 +90,7 @@
   <script src="/static/js/app.js"></script>
   <script>
     let currentServerId = '';
+    let currentTools = [];
 
     document.addEventListener('DOMContentLoaded', loadMCPApps);
 
@@ -82,18 +99,26 @@
         const select = document.getElementById('mcp-server-select');
         const apps = (data.apps||[]).filter(a => a.type === 'mcp');
         select.innerHTML = '<option value="">Select an MCP server...</option>' + apps.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+        const params = new URLSearchParams(window.location.search);
+        const selected = params.get('app') || params.get('server');
+        if (selected && apps.some(a => a.id === selected)) {
+          select.value = selected;
+          onServerChange();
+        }
       }).catch(console.error);
     }
 
     function onServerChange() {
       currentServerId = document.getElementById('mcp-server-select').value;
       if (currentServerId) {
-        loadMCPStatus(currentServerId); loadMCPTools(currentServerId); loadMCPResources(currentServerId); loadMCPPrompts(currentServerId);
+        loadMCPStatus(currentServerId); loadMCPTools(currentServerId); loadMCPResources(currentServerId); loadMCPPrompts(currentServerId); loadMCPHistory(currentServerId);
         document.getElementById('tab-bar').style.display = 'flex';
         document.getElementById('status-bar').style.display = 'grid';
+        document.getElementById('history-section').style.display = 'block';
       } else {
         document.getElementById('tab-bar').style.display = 'none';
         document.getElementById('status-bar').style.display = 'none';
+        document.getElementById('history-section').style.display = 'none';
         const cs = document.getElementById('connection-status');
         cs.innerHTML = '<span class="dot"></span>Not connected'; cs.className = 'status-badge offline';
       }
@@ -108,6 +133,7 @@
         document.getElementById('mcp-tool-count').textContent = data.tool_count;
         document.getElementById('mcp-resource-count').textContent = data.resource_count;
         document.getElementById('mcp-prompt-count').textContent = data.prompt_count;
+        document.getElementById('mcp-recent-count').textContent = data.recent_invocation_count || 0;
         document.getElementById('mcp-initialized-at').textContent = data.initialized_at ? formatDateTime(data.initialized_at) : '--';
       }).catch(console.error);
     }
@@ -115,15 +141,110 @@
     function loadMCPTools(id) {
       fetch(`/api/apps/${id}/mcp/tools`).then(r=>r.json()).then(data => {
         const grid = document.getElementById('tools-grid');
+        currentTools = data.tools || [];
         if (!data.tools || data.tools.length === 0) { grid.innerHTML = '<p class="text-muted">No tools discovered.</p>'; return; }
-        grid.innerHTML = data.tools.map(t => `
+        grid.innerHTML = data.tools.map((t, index) => `
           <div class="mcp-item-card">
             <div class="mcp-item-header"><span class="mcp-item-name">${escapeHtml(t.name)}</span></div>
             ${t.description ? `<p class="mcp-item-desc">${escapeHtml(t.description)}</p>` : ''}
+            <form class="mcp-tool-form" onsubmit="event.preventDefault(); invokeTool(${index})">
+              ${renderArgumentForm(t, index)}
+              <div class="mcp-item-actions"><button class="btn btn-sm btn-primary" type="submit">Invoke</button></div>
+            </form>
             ${t.inputSchema ? `<div class="mcp-item-schema"><details><summary>Input Schema</summary><pre class="schema-json">${escapeHtml(JSON.stringify(t.inputSchema,null,2))}</pre></details></div>` : ''}
-            <div class="mcp-item-actions"><button class="btn btn-sm btn-primary" disabled>Invoke</button></div>
+            <div id="tool-result-${index}" class="mcp-tool-result" style="display:none"></div>
           </div>`).join('');
       }).catch(() => document.getElementById('tools-grid').innerHTML = '<p class="text-muted">Failed to load tools.</p>');
+    }
+
+    function renderArgumentForm(tool, index) {
+      const schema = tool.inputSchema || {};
+      const properties = schema.properties || {};
+      const required = new Set(schema.required || []);
+      const names = Object.keys(properties);
+      if (names.length === 0) {
+        return '<label class="mcp-field"><span>Arguments JSON</span><textarea class="mcp-input mcp-args-json" data-tool-index="' + index + '" rows="4">{}</textarea></label>';
+      }
+      return names.map(name => renderArgumentField(index, name, properties[name], required.has(name))).join('');
+    }
+
+    function renderArgumentField(index, name, field, required) {
+      const schemaType = Array.isArray(field.type) ? field.type[0] : field.type;
+      const enumType = Array.isArray(field.enum) && field.enum.length > 0 ? typeof field.enum[0] : null;
+      const type = schemaType || (enumType === 'number' || enumType === 'boolean' ? enumType : null);
+      const label = `${escapeHtml(name)}${required ? ' *' : ''}`;
+      const common = `class="mcp-input mcp-arg" data-tool-index="${index}" data-name="${escapeHtml(name)}" data-type="${escapeHtml(type || 'json')}" ${required ? 'required' : ''}`;
+      if (Array.isArray(field.enum)) {
+        return `<label class="mcp-field"><span>${label}</span><select ${common}>${field.enum.map(v => `<option value="${escapeHtml(String(v))}">${escapeHtml(String(v))}</option>`).join('')}</select></label>`;
+      }
+      if (type === 'string') {
+        return `<label class="mcp-field"><span>${label}</span><input ${common} type="text" placeholder="${escapeHtml(field.description || name)}"></label>`;
+      }
+      if (type === 'number' || type === 'integer') {
+        return `<label class="mcp-field"><span>${label}</span><input ${common} type="number" ${type === 'integer' ? 'step="1"' : 'step="any"'}></label>`;
+      }
+      if (type === 'boolean') {
+        return `<label class="mcp-field mcp-checkbox"><input ${common} type="checkbox"><span>${label}</span></label>`;
+      }
+      return `<label class="mcp-field"><span>${label}</span><textarea ${common} rows="3" placeholder="JSON value"></textarea></label>`;
+    }
+
+    function collectArguments(index) {
+      const jsonBox = document.querySelector(`.mcp-args-json[data-tool-index="${index}"]`);
+      if (jsonBox) {
+        const raw = jsonBox.value.trim() || '{}';
+        return JSON.parse(raw);
+      }
+      const args = {};
+      document.querySelectorAll(`.mcp-arg[data-tool-index="${index}"]`).forEach(input => {
+        const name = input.dataset.name;
+        const type = input.dataset.type;
+        if (type === 'boolean') {
+          args[name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
+          return;
+        }
+        const raw = input.value.trim();
+        if (raw === '' && input.required) throw new Error(`${name} is required`);
+        if (raw === '' && !input.required) return;
+        if (type === 'number' || type === 'integer') args[name] = Number(raw);
+        else if (type === 'object' || type === 'array' || type === 'json') args[name] = raw ? JSON.parse(raw) : null;
+        else args[name] = raw;
+      });
+      return args;
+    }
+
+    function invokeTool(index) {
+      const tool = currentTools[index];
+      const result = document.getElementById(`tool-result-${index}`);
+      if (!tool || !currentServerId) return;
+      let argumentsPayload;
+      try {
+        argumentsPayload = collectArguments(index);
+      } catch (e) {
+        showToolResult(result, { error: 'Invalid JSON argument: ' + e.message }, true);
+        return;
+      }
+      showToolResult(result, { status: 'Calling...' }, false);
+      fetch(`/api/apps/${currentServerId}/mcp/call`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool: tool.name, arguments: argumentsPayload })
+      }).then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Tool call failed');
+        showToolResult(result, data, data.isError);
+        loadMCPStatus(currentServerId);
+        loadMCPHistory(currentServerId);
+      }).catch(e => {
+        showToolResult(result, { error: e.message }, true);
+        loadMCPHistory(currentServerId);
+      });
+    }
+
+    function showToolResult(container, data, isError) {
+      container.style.display = 'block';
+      container.className = 'mcp-tool-result ' + (isError ? 'error' : 'success');
+      container.innerHTML = `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
     }
 
     function loadMCPResources(id) {
@@ -152,6 +273,24 @@
       }).catch(() => document.getElementById('prompts-grid').innerHTML = '<p class="text-muted">Failed to load prompts.</p>');
     }
 
+    function loadMCPHistory(id) {
+      if (!id) return;
+      fetch(`/api/apps/${id}/mcp/history?limit=50`).then(r=>r.json()).then(data => {
+        const tbody = document.getElementById('mcp-history-body');
+        const rows = data.invocations || [];
+        if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No tool calls recorded.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(row => `
+          <tr>
+            <td>${formatDateTime(row.started_at)}</td>
+            <td class="mono">${escapeHtml(row.tool_name)}</td>
+            <td class="mono">${row.duration_ms ?? 0} ms</td>
+            <td><span class="status-badge ${row.success ? 'success' : 'error'}"><span class="dot"></span>${row.success ? 'OK' : 'Fail'}</span></td>
+            <td class="mono mcp-history-json">${escapeHtml(truncate(JSON.stringify(row.arguments || {}), 80))}</td>
+            <td>${escapeHtml(truncate(row.result_summary || row.error_message || '', 120))}</td>
+          </tr>`).join('');
+      }).catch(() => document.getElementById('mcp-history-body').innerHTML = '<tr><td colspan="6" class="error-cell">Failed to load history.</td></tr>');
+    }
+
     function switchTab(name) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -161,6 +300,11 @@
 
     function statusClass(s) {
       switch(s) { case 'initialized': return 'online'; case 'connecting': return 'warning'; case 'error': return 'error'; default: return 'offline'; }
+    }
+
+    function truncate(text, max) {
+      if (!text) return '';
+      return text.length > max ? text.slice(0, max - 1) + '...' : text;
     }
   </script>
 </body>

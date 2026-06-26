@@ -218,6 +218,7 @@ function renderAppsGrid(apps) {
 
 function createAppCardHTML(app) {
   const running = app.running;
+  const mcpToolsButton = app.type === 'mcp' ? `<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); openMCPTools('${app.id}')">MCP Tools</button>` : '';
   return `
     <div class="app-card${running ? ' running' : ''}" data-app-id="${app.id}">
       <div class="app-card-header">
@@ -251,6 +252,7 @@ function createAppCardHTML(app) {
         ` : `
           <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); startApp('${app.id}')">Start</button>
         `}
+        ${mcpToolsButton}
         <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewLogs('${app.id}')">Logs</button>
       </div>
     </div>
@@ -266,6 +268,7 @@ function renderAppsList(apps) {
   }
   container.innerHTML = apps.map(app => {
     const running = app.running;
+    const mcpToolsButton = app.type === 'mcp' ? `<button class="btn btn-sm btn-secondary" onclick="openMCPTools('${app.id}')">MCP Tools</button>` : '';
     return `
       <div class="list-row${running ? ' running' : ''}">
         <div class="list-row-icon">${getAppIcon(app.type)}</div>
@@ -297,6 +300,7 @@ function renderAppsList(apps) {
           ` : `
             <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
           `}
+          ${mcpToolsButton}
           <button class="btn btn-sm btn-secondary" onclick="viewLogs('${app.id}')">Logs</button>
         </div>
       </div>
@@ -313,6 +317,7 @@ function renderAppsTable(apps) {
   }
   tbody.innerHTML = apps.map(app => {
     const running = app.running;
+    const mcpToolsButton = app.type === 'mcp' ? `<button class="btn btn-sm btn-secondary" onclick="openMCPTools('${app.id}')">MCP Tools</button>` : '';
     return `
       <tr class="${running ? 'row-running' : ''}">
         <td>
@@ -339,6 +344,7 @@ function renderAppsTable(apps) {
           ` : `
             <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
           `}
+          ${mcpToolsButton}
           <button class="btn btn-sm btn-secondary" onclick="viewLogs('${app.id}')">Logs</button>
         </td>
       </tr>
@@ -413,6 +419,7 @@ function showSessionsModal(appId, sessions) {
 
 // -- Utilities --
 function openUrl(url) { window.open(url, '_blank'); }
+function openMCPTools(appId) { window.location.href = `/web/mcp.html?app=${encodeURIComponent(appId)}`; }
 
 function getAppIcon(type) {
   const icons = { desktop: '\uD83D\uDDA5\uFE0F', web: '\uD83C\uDF10', api: '\u2699\uFE0F', background: '\uD83D\uDD04', external: '\uD83D\uDD17', mcp: '\uD83D\uDD0C' };

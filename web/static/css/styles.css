@@ -1237,6 +1237,82 @@ body {
   padding-top: 8px;
 }
 
+.mcp-tool-form {
+  display: grid;
+  gap: 10px;
+}
+
+.mcp-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.mcp-field span {
+  font-weight: 600;
+}
+
+.mcp-input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+}
+
+.mcp-input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.mcp-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-tool-result {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.mcp-tool-result.success {
+  border-color: rgba(46, 125, 50, 0.35);
+}
+
+.mcp-tool-result.error {
+  border-color: rgba(211, 47, 47, 0.35);
+}
+
+.mcp-tool-result pre {
+  margin: 0;
+  padding: 10px;
+  max-height: 260px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.mcp-history-section {
+  margin-top: 24px;
+}
+
+.mcp-history-json {
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* -- Export -- */
 .export-form {
   display: flex;

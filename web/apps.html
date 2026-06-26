@@ -151,6 +151,7 @@
             ` : `
               <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
             `}
+            ${app.type === 'mcp' ? `<button class="btn btn-sm btn-secondary" onclick="openMCPTools('${app.id}')">MCP Tools</button>` : ''}
             <button class="btn btn-sm btn-secondary" onclick="viewAppSessions('${app.id}')">Sessions</button>
             <button class="btn btn-sm btn-secondary" onclick="viewLogs('${app.id}')">Logs</button>
           </td>

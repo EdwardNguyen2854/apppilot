@@ -132,6 +132,21 @@ class Database:
             """)
 
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS mcp_invocations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    app_id TEXT NOT NULL,
+                    tool_name TEXT NOT NULL,
+                    arguments_json TEXT,
+                    started_at TIMESTAMP NOT NULL,
+                    duration_ms INTEGER,
+                    success INTEGER DEFAULT 0,
+                    result_summary TEXT,
+                    error_message TEXT,
+                    FOREIGN KEY (app_id) REFERENCES apps(app_id)
+                )
+            """)
+
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS exports (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     week_id TEXT NOT NULL,
@@ -146,6 +161,8 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON app_sessions(started_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_app_id ON usage_events(app_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON usage_events(timestamp)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcp_invocations_app_id ON mcp_invocations(app_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcp_invocations_started_at ON mcp_invocations(started_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_app_id ON process_metrics(app_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_health_app_id ON health_checks(app_id)")
 
@@ -249,6 +266,68 @@ class Database:
                 1 if success else 0,
                 app_version, machine_id, user_alias, datetime.now()
             ))
+
+    def record_mcp_invocation(self, app_id: str, tool_name: str,
+                              arguments: Dict = None, started_at: datetime = None,
+                              duration_ms: int = None, success: bool = False,
+                              result_summary: str = None,
+                              error_message: str = None) -> int:
+        """Record an MCP tool invocation attempt."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO mcp_invocations (
+                    app_id, tool_name, arguments_json, started_at, duration_ms,
+                    success, result_summary, error_message
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                app_id,
+                tool_name,
+                json.dumps(arguments or {}),
+                started_at or datetime.now(),
+                duration_ms,
+                1 if success else 0,
+                result_summary,
+                error_message,
+            ))
+            return cursor.lastrowid
+
+    def list_mcp_invocations(self, app_id: str, limit: int = 50) -> List[Dict]:
+        """Return recent MCP invocations newest first."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM mcp_invocations
+                WHERE app_id = ?
+                ORDER BY started_at DESC, id DESC
+                LIMIT ?
+            """, (app_id, limit))
+            rows = []
+            for row in cursor.fetchall():
+                item = dict(row)
+                try:
+                    item["arguments"] = json.loads(item.get("arguments_json") or "{}")
+                except json.JSONDecodeError:
+                    item["arguments"] = {}
+                item["success"] = bool(item.get("success"))
+                rows.append(item)
+            return rows
+
+    def count_recent_mcp_invocations(self, app_id: str, since: datetime = None) -> int:
+        """Count MCP invocations for an app since a timestamp."""
+        if since is None:
+            since = datetime.now() - timedelta(days=1)
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) AS count
+                FROM mcp_invocations
+                WHERE app_id = ? AND started_at >= ?
+            """, (app_id, since))
+            row = cursor.fetchone()
+            return int(row["count"] if row else 0)
 
     def record_export(self, week_id: str, file_name: str, record_count: int,
                       status: str = 'completed') -> None:
@@ -377,6 +456,8 @@ class Database:
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM usage_events WHERE timestamp < ?", (cutoff_date,))
             deleted += cursor.rowcount
+            cursor.execute("DELETE FROM mcp_invocations WHERE started_at < ?", (cutoff_date,))
+            deleted += cursor.rowcount
             conn.commit()
             return deleted
 
@@ -391,6 +472,8 @@ class Database:
             cursor.execute("DELETE FROM health_checks WHERE timestamp < ?", (cutoff_date,))
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM usage_events WHERE timestamp < ?", (cutoff_date,))
+            deleted += cursor.rowcount
+            cursor.execute("DELETE FROM mcp_invocations WHERE started_at < ?", (cutoff_date,))
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM app_sessions WHERE started_at < ?", (cutoff_date,))
             deleted += cursor.rowcount
@@ -408,6 +491,8 @@ class Database:
             cursor.execute("DELETE FROM health_checks")
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM usage_events")
+            deleted += cursor.rowcount
+            cursor.execute("DELETE FROM mcp_invocations")
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM app_sessions")
             deleted += cursor.rowcount
