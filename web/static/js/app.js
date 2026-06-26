@@ -419,7 +419,7 @@ function showSessionsModal(appId, sessions) {
 
 // -- Utilities --
 function openUrl(url) { window.open(url, '_blank'); }
-function openMCPTools(appId) { window.location.href = `/web/mcp.html?app=${encodeURIComponent(appId)}`; }
+function openMCPTools(appId) { window.location.href = `/web/mcp.html?server=${encodeURIComponent(appId)}`; }
 
 function getAppIcon(type) {
   const icons = { desktop: '\uD83D\uDDA5\uFE0F', web: '\uD83C\uDF10', api: '\u2699\uFE0F', background: '\uD83D\uDD04', external: '\uD83D\uDD17', mcp: '\uD83D\uDD0C' };

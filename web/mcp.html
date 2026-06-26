@@ -73,7 +73,14 @@
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
-            <thead><tr><th>Time</th><th>Tool</th><th>Duration</th><th>Status</th><th>Args</th><th>Result</th></tr></thead>
+            <thead><tr>
+              <th><button class="table-sort-btn" onclick="sortMCPHistory('timestamp')">Time</button></th>
+              <th><button class="table-sort-btn" onclick="sortMCPHistory('tool_name')">Tool</button></th>
+              <th><button class="table-sort-btn" onclick="sortMCPHistory('duration_ms')">Duration</button></th>
+              <th><button class="table-sort-btn" onclick="sortMCPHistory('success')">Status</button></th>
+              <th>Args</th>
+              <th>Result</th>
+            </tr></thead>
             <tbody id="mcp-history-body">
               <tr><td colspan="6" class="empty-cell">Select a server to view history.</td></tr>
             </tbody>
@@ -91,6 +98,8 @@
   <script>
     let currentServerId = '';
     let currentTools = [];
+    let mcpHistoryRows = [];
+    let mcpHistorySort = { field: 'timestamp', direction: 'desc' };
 
     document.addEventListener('DOMContentLoaded', loadMCPApps);
 
@@ -244,7 +253,7 @@
     function showToolResult(container, data, isError) {
       container.style.display = 'block';
       container.className = 'mcp-tool-result ' + (isError ? 'error' : 'success');
-      container.innerHTML = `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+      container.innerHTML = `<pre>${highlightJson(data)}</pre>`;
     }
 
     function loadMCPResources(id) {
@@ -276,19 +285,42 @@
     function loadMCPHistory(id) {
       if (!id) return;
       fetch(`/api/apps/${id}/mcp/history?limit=50`).then(r=>r.json()).then(data => {
-        const tbody = document.getElementById('mcp-history-body');
-        const rows = data.invocations || [];
-        if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No tool calls recorded.</td></tr>'; return; }
-        tbody.innerHTML = rows.map(row => `
+        mcpHistoryRows = data.history || data.invocations || [];
+        renderMCPHistory();
+      }).catch(() => document.getElementById('mcp-history-body').innerHTML = '<tr><td colspan="6" class="error-cell">Failed to load history.</td></tr>');
+    }
+
+    function renderMCPHistory() {
+      const tbody = document.getElementById('mcp-history-body');
+      const rows = [...mcpHistoryRows].sort(compareHistoryRows);
+      if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-cell">No tool calls recorded.</td></tr>'; return; }
+      tbody.innerHTML = rows.map(row => `
           <tr>
-            <td>${formatDateTime(row.started_at)}</td>
+            <td>${formatDateTime(row.timestamp || row.started_at)}</td>
             <td class="mono">${escapeHtml(row.tool_name)}</td>
             <td class="mono">${row.duration_ms ?? 0} ms</td>
             <td><span class="status-badge ${row.success ? 'success' : 'error'}"><span class="dot"></span>${row.success ? 'OK' : 'Fail'}</span></td>
-            <td class="mono mcp-history-json">${escapeHtml(truncate(JSON.stringify(row.arguments || {}), 80))}</td>
+            <td class="mono mcp-history-json">${escapeHtml(truncate(JSON.stringify(row.args || row.arguments || {}), 80))}</td>
             <td>${escapeHtml(truncate(row.result_summary || row.error_message || '', 120))}</td>
           </tr>`).join('');
-      }).catch(() => document.getElementById('mcp-history-body').innerHTML = '<tr><td colspan="6" class="error-cell">Failed to load history.</td></tr>');
+    }
+
+    function compareHistoryRows(a, b) {
+      const field = mcpHistorySort.field;
+      const direction = mcpHistorySort.direction === 'asc' ? 1 : -1;
+      const av = field === 'timestamp' ? (a.timestamp || a.started_at || '') : a[field];
+      const bv = field === 'timestamp' ? (b.timestamp || b.started_at || '') : b[field];
+      if (typeof av === 'number' || typeof bv === 'number') return ((av || 0) - (bv || 0)) * direction;
+      return String(av ?? '').localeCompare(String(bv ?? '')) * direction;
+    }
+
+    function sortMCPHistory(field) {
+      if (mcpHistorySort.field === field) {
+        mcpHistorySort.direction = mcpHistorySort.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        mcpHistorySort = { field, direction: field === 'timestamp' ? 'desc' : 'asc' };
+      }
+      renderMCPHistory();
     }
 
     function switchTab(name) {
@@ -305,6 +337,15 @@
     function truncate(text, max) {
       if (!text) return '';
       return text.length > max ? text.slice(0, max - 1) + '...' : text;
+    }
+
+    function highlightJson(value) {
+      const json = escapeHtml(JSON.stringify(value, null, 2));
+      return json.replace(/(&quot;(?:\\.|[^\\])*?&quot;)(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (match, string, colon, literal) => {
+        if (string) return colon ? `<span class="json-key">${string}</span>${colon}` : `<span class="json-string">${string}</span>`;
+        if (literal) return `<span class="json-literal">${literal}</span>`;
+        return `<span class="json-number">${match}</span>`;
+      });
     }
   </script>
 </body>

@@ -1313,6 +1313,36 @@ body {
   text-overflow: ellipsis;
 }
 
+.table-sort-btn {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.table-sort-btn:hover {
+  color: var(--accent);
+}
+
+.json-key {
+  color: #7b3f00;
+}
+
+.json-string {
+  color: #0b6b3a;
+}
+
+.json-number {
+  color: #0b4f9c;
+}
+
+.json-literal {
+  color: #7a1f7a;
+}
+
 /* -- Export -- */
 .export-form {
   display: flex;

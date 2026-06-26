@@ -269,11 +269,41 @@ class TestMCPToolInvocation:
         resp = client.get("/api/apps/test-mcp-server/mcp/history")
 
         assert resp.status_code == 200
-        invocations = resp.json()["invocations"]
+        data = resp.json()
+        invocations = data["invocations"]
+        assert data["history"] == invocations
         assert [row["tool_name"] for row in invocations] == ["echo", "get_weather"]
         assert invocations[0]["success"] is True
         assert invocations[0]["arguments"] == {"message": "hi"}
+        assert invocations[0]["args"] == {"message": "hi"}
+        assert invocations[0]["timestamp"] == invocations[0]["started_at"]
         assert invocations[0]["result_summary"] == "Echo: hi"
+
+    def test_malformed_call_records_failed_attempt(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "arguments": {"location": "Hanoi"},
+        })
+
+        assert resp.status_code == 422
+        history = client.get("/api/apps/test-mcp-server/mcp/history").json()["invocations"]
+        assert len(history) == 1
+        assert history[0]["tool_name"] == "__missing__"
+        assert history[0]["success"] is False
+        assert history[0]["error_message"] == "Field 'tool' is required"
+        events = client.get("/api/usage/events?app_id=test-mcp-server&limit=5").json()["events"]
+        event = next(e for e in events if e["event_name"] == "mcp_tool_called")
+        details = json.loads(event["details_json"])
+        assert details["tool_name"] == "__missing__"
+        assert details["success"] is False
 
     def test_failed_call_creates_history_row(self, client, mock_asyncio_subprocess):
         mock_proc = create_mock_process([

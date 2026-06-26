@@ -310,6 +310,8 @@ class Database:
                     item["arguments"] = json.loads(item.get("arguments_json") or "{}")
                 except json.JSONDecodeError:
                     item["arguments"] = {}
+                item["args"] = item["arguments"]
+                item["timestamp"] = item.get("started_at")
                 item["success"] = bool(item.get("success"))
                 rows.append(item)
             return rows

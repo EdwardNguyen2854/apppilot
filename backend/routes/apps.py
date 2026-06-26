@@ -529,15 +529,34 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
         if not _is_mcp_app(app_config):
             raise HTTPException(status_code=400, detail=f"App {app_id} is not an MCP app")
 
+        started_at = datetime.now()
+        started_perf = time.perf_counter()
         tool_name = payload.get("tool")
         arguments = payload.get("arguments", {})
         if not isinstance(tool_name, str) or not tool_name:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(
+                app_id,
+                "__missing__",
+                arguments if isinstance(arguments, dict) else {},
+                started_at,
+                duration_ms,
+                False,
+                error_message="Field 'tool' is required",
+            )
             raise HTTPException(status_code=422, detail="Field 'tool' is required")
         if not isinstance(arguments, dict):
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(
+                app_id,
+                tool_name,
+                {},
+                started_at,
+                duration_ms,
+                False,
+                error_message="Field 'arguments' must be an object",
+            )
             raise HTTPException(status_code=422, detail="Field 'arguments' must be an object")
-
-        started_at = datetime.now()
-        started_perf = time.perf_counter()
 
         if mcp_manager is None:
             duration_ms = int((time.perf_counter() - started_perf) * 1000)
@@ -600,6 +619,6 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
 
         bounded_limit = max(1, min(limit, 200))
         invocations = database.list_mcp_invocations(app_id, limit=bounded_limit) if database else []
-        return {"app_id": app_id, "invocations": invocations, "total": len(invocations)}
+        return {"app_id": app_id, "history": invocations, "invocations": invocations, "total": len(invocations)}
 
     return router
