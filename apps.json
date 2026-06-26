@@ -53,5 +53,100 @@
       "cpu_ram": false,
       "events": false
     }
+  },
+  {
+    "id": "dummy-web",
+    "name": "Dummy Web App",
+    "type": "web",
+    "description": "Dummy HTTP server for testing web app lifecycle, port monitoring, and health checks",
+    "exe": "apps/dummy-web/run.bat",
+    "args": ["--port", "8788"],
+    "port": 8788,
+    "url": "http://127.0.0.1:8788",
+    "health_url": "http://127.0.0.1:8788/health",
+    "auto_start": false,
+    "log_file": "logs/dummy-web.log",
+    "monitor": {
+      "process": true,
+      "port": true,
+      "http": true,
+      "cpu_ram": true,
+      "events": true
+    }
+  },
+  {
+    "id": "dummy-desktop",
+    "name": "Dummy Desktop App",
+    "type": "desktop",
+    "description": "Dummy background process for testing desktop app lifecycle and resource monitoring",
+    "exe": "apps/dummy-desktop/run.bat",
+    "args": [],
+    "auto_start": false,
+    "log_file": "logs/dummy-desktop.log",
+    "monitor": {
+      "process": true,
+      "port": false,
+      "http": false,
+      "cpu_ram": true,
+      "events": true
+    }
+  },
+  {
+    "id": "dummy-api",
+    "name": "Dummy API App",
+    "type": "api",
+    "description": "Dummy API server for testing headless service lifecycle and port monitoring",
+    "exe": "apps/dummy-api/run.bat",
+    "args": ["--port", "8789"],
+    "port": 8789,
+    "url": "http://127.0.0.1:8789",
+    "health_url": "http://127.0.0.1:8789/health",
+    "auto_start": false,
+    "log_file": "logs/dummy-api.log",
+    "monitor": {
+      "process": true,
+      "port": true,
+      "http": true,
+      "cpu_ram": true,
+      "events": true
+    }
+  },
+  {
+    "id": "dummy-cli",
+    "name": "Dummy CLI App",
+    "type": "cli",
+    "description": "Dummy CLI tool for testing run-once execution with output and exit codes",
+    "exe": "apps/dummy-cli/run.bat",
+    "args": ["--test", "hello"],
+    "auto_start": false,
+    "log_file": "logs/dummy-cli.log",
+    "cwd": "apps/dummy-cli",
+    "timeout": 30,
+    "monitor": {
+      "process": true,
+      "port": false,
+      "http": false,
+      "cpu_ram": false,
+      "events": true
+    }
+  },
+  {
+    "id": "dummy-mcp",
+    "name": "Dummy MCP Server",
+    "type": "mcp",
+    "description": "Dummy MCP server for testing MCP lifecycle, tool/resource/prompt discovery",
+    "exe": "apps/dummy-mcp/run.bat",
+    "args": [],
+    "transport": "stdio",
+    "cwd": null,
+    "auto_start": false,
+    "log_file": "logs/dummy-mcp.log",
+    "monitor": {
+      "process": false,
+      "port": false,
+      "http": false,
+      "cpu_ram": false,
+      "events": true
+    }
   }
 ]

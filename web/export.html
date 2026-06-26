@@ -1,386 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Export - AppPilot</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="/static/css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Export - AppPilot</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <span class="logo-icon">🚀</span>
-                    <h1>AppPilot</h1>
-                </div>
-                <div class="header-nav">
-                    <a href="/web/index.html" class="btn btn-link">← Dashboard</a>
-                    <a href="/web/apps.html" class="btn btn-link">Apps</a>
-                    <a href="/web/usage.html" class="btn btn-link">Usage</a>
-                </div>
-            </div>
-        </header>
+  <div class="supergraphic"></div>
 
-        <main class="main-content">
-            <h2>📥 Export Usage Data</h2>
-
-            <div class="export-info">
-                <p>Export your weekly usage data for administrative collection and analysis.</p>
-                <p class="text-muted">Exported files are saved to the <code>exports/</code> directory.</p>
-            </div>
-
-            <!-- Manual Export Section -->
-            <section class="export-section">
-                <h3>🎯 Manual Export</h3>
-
-                <div class="export-form">
-                    <div class="form-group">
-                        <label for="export-year">Year:</label>
-                        <select id="export-year">
-                            <option value="2026">2026</option>
-                            <option value="2025">2025</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="export-week">Week:</label>
-                        <select id="export-week">
-                            <!-- Populated by JS -->
-                        </select>
-                    </div>
-                    <button class="btn btn-primary btn-lg" onclick="exportWeekly()">
-                        📥 Export Selected Week
-                    </button>
-                </div>
-
-                <div id="export-result" class="export-result"></div>
-            </section>
-
-            <!-- Quick Export Current Week -->
-            <section class="export-section">
-                <h3>⚡ Quick Export (Current Week)</h3>
-                <p>Export usage data for the current week automatically.</p>
-                <button class="btn btn-success btn-lg" onclick="exportCurrentWeek()">
-                    📥 Export Current Week
-                </button>
-            </section>
-
-            <!-- Previous Exports -->
-            <section class="exports-list-section">
-                <h3>📁 Previous Exports</h3>
-                <div id="exports-list" class="exports-grid">
-                    <div class="loading-spinner">
-                        <div class="spinner"></div>
-                        <span>Loading exports...</span>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Export Format Info -->
-            <section class="export-info-section">
-                <h3>📋 Export Format</h3>
-                <p>Exported ZIP files contain:</p>
-                <ul class="export-contents">
-                    <li><code>summary.json</code> - Export metadata and statistics</li>
-                    <li><code>sessions.csv</code> - App session records</li>
-                    <li><code>events.csv</code> - Usage events</li>
-                    <li><code>health_checks.csv</code> - Health check results</li>
-                    <li><code>process_metrics.csv</code> - CPU/RAM metrics</li>
-                </ul>
-                <p class="text-muted">All timestamps are in ISO 8601 format. Machine ID and user alias are included for multi-user reporting.</p>
-            </section>
-        </main>
-
-        <footer class="footer">
-            <p>AppPilot v1.0.0 | <a href="/web/index.html">Back to Dashboard</a></p>
-        </footer>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/web/index.html" class="logo">
+        <span class="logo-icon">✦</span>
+        AppPilot
+      </a>
+      <nav class="nav">
+        <a href="/web/index.html">Dashboard</a>
+        <a href="/web/apps.html">Apps</a>
+        <a href="/web/usage.html">Usage</a>
+        <a href="/web/mcp.html">MCP</a>
+        <a href="/web/export.html">Export</a>
+        <a href="/web/settings.html">Settings</a>
+      </nav>
+      <div class="header-actions"></div>
     </div>
+  </header>
 
-    <script src="/static/js/app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            populateWeeks();
+  <div class="container">
+    <main class="main-content">
+      <h2>Export Usage Data</h2>
+
+      <div class="export-info">
+        <p>Export weekly usage data for administrative collection. Files saved to <code>exports/</code> directory.</p>
+      </div>
+
+      <!-- Manual Export -->
+      <section class="export-section">
+        <h3>Manual Export</h3>
+        <div class="export-form">
+          <div class="form-group">
+            <label for="export-year">Year:</label>
+            <select id="export-year">
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="export-week">Week:</label>
+            <select id="export-week"></select>
+          </div>
+          <button class="btn btn-primary" onclick="exportWeekly()">⬇ Export Selected Week</button>
+        </div>
+        <div id="export-result" class="export-result"></div>
+      </section>
+
+      <!-- Quick Export -->
+      <section class="export-section">
+        <h3>Quick Export (Current Week)</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px">Export usage data for the current week automatically.</p>
+        <button class="btn btn-success btn-lg" onclick="exportCurrentWeek()">⬇ Export Current Week</button>
+      </section>
+
+      <!-- Previous Exports -->
+      <section class="export-section">
+        <h3>Previous Exports</h3>
+        <div id="exports-list" class="exports-grid">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- Format Info -->
+      <section class="export-info-section">
+        <h3>Export Format</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px">Exported ZIP files contain:</p>
+        <ul class="export-contents" style="padding:0">
+          <li><code>summary.json</code> — Export metadata and statistics</li>
+          <li><code>sessions.csv</code> — App session records</li>
+          <li><code>events.csv</code> — Usage events</li>
+          <li><code>health_checks.csv</code> — Health check results</li>
+          <li><code>process_metrics.csv</code> — CPU/RAM metrics</li>
+        </ul>
+        <p class="text-muted" style="font-size:0.82rem;margin-top:12px">All timestamps in ISO 8601. Machine ID and user alias included.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>AppPilot v1.0.0 · <a href="/web/index.html">Dashboard</a></p>
+  </footer>
+
+  <script src="/static/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() { populateWeeks(); loadExportsList(); });
+
+    function populateWeeks() {
+      const s = document.getElementById('export-week');
+      const n = new Date(), cw = getWeekNumber(n);
+      s.innerHTML = '';
+      for (let w = 1; w <= 53; w++) {
+        const o = document.createElement('option');
+        o.value = w; o.textContent = `Week ${w.toString().padStart(2,'0')}`;
+        if (w === cw) o.selected = true;
+        s.appendChild(o);
+      }
+    }
+
+    function getWeekNumber(date) {
+      const d = new Date(date); d.setHours(0,0,0,0); d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+      const ys = new Date(d.getFullYear(),0,1);
+      return Math.ceil((((d - ys) / 86400000) + 1) / 7);
+    }
+
+    function loadExportsList() {
+      fetch('/api/usage/exports').then(r=>r.json()).then(data => renderExportsList(data.exports))
+        .catch(() => document.getElementById('exports-list').innerHTML = '<p class="text-muted">Failed to load exports</p>');
+    }
+
+    function renderExportsList(exports) {
+      const c = document.getElementById('exports-list');
+      if (!exports || exports.length === 0) { c.innerHTML = '<p class="text-muted">No exports found</p>'; return; }
+      c.innerHTML = exports.map(exp => `
+        <div class="export-card">
+          <div class="export-icon">📦</div>
+          <div style="flex:1;min-width:0">
+            <div class="export-name">${escapeHtml(exp.filename)}</div>
+            <div class="export-meta"><span>${formatFileSize(exp.size_bytes)}</span><span>·</span><span>${formatDateTime(exp.created_at)}</span></div>
+          </div>
+          <div class="export-actions"><button class="btn btn-sm btn-secondary" onclick="downloadExport('${exp.filename}')">⬇ Download</button></div>
+        </div>`).join('');
+    }
+
+    function exportWeekly() {
+      const year = document.getElementById('export-year').value, week = document.getElementById('export-week').value;
+      const rd = document.getElementById('export-result');
+      rd.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>Exporting...</span></div>';
+      fetch(`/api/usage/export-weekly?year=${year}&week=${week}`, { method: 'POST' })
+        .then(r => r.json()).then(data => {
+          if (data.success) {
+            rd.innerHTML = `<div class="export-success"><strong>✓ Export Successful</strong><p style="margin-top:4px">File: ${escapeHtml(data.filename)} · Records: ${data.records}</p></div>`;
             loadExportsList();
-        });
+          } else {
+            rd.innerHTML = `<div class="export-error"><strong>✗ Export Failed</strong><p style="margin-top:4px">${escapeHtml(data.message)}</p></div>`;
+          }
+        }).catch(err => rd.innerHTML = `<div class="export-error"><strong>✗ Error</strong><p style="margin-top:4px">${escapeHtml(err.message)}</p></div>`);
+    }
 
-        function populateWeeks() {
-            const weekSelect = document.getElementById('export-week');
-            const year = document.getElementById('export-year').value;
+    function exportCurrentWeek() {
+      const n = new Date();
+      document.getElementById('export-year').value = n.getFullYear();
+      document.getElementById('export-week').value = getWeekNumber(n);
+      exportWeekly();
+    }
 
-            // Get current week
-            const now = new Date();
-            const currentWeek = getWeekNumber(now);
-
-            weekSelect.innerHTML = '';
-            for (let w = 1; w <= 53; w++) {
-                const option = document.createElement('option');
-                option.value = w;
-                option.textContent = `Week ${w.toString().padStart(2, '0')}`;
-                if (w === currentWeek) option.selected = true;
-                weekSelect.appendChild(option);
-            }
-        }
-
-        function getWeekNumber(date) {
-            const d = new Date(date);
-            d.setHours(0, 0, 0, 0);
-            d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-            const yearStart = new Date(d.getFullYear(), 0, 1);
-            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-        }
-
-        function loadExportsList() {
-            fetch('/api/usage/exports')
-                .then(r => r.json())
-                .then(data => {
-                    renderExportsList(data.exports);
-                })
-                .catch(err => {
-                    document.getElementById('exports-list').innerHTML =
-                        '<p class="text-muted">Failed to load exports</p>';
-                });
-        }
-
-        function renderExportsList(exports) {
-            const container = document.getElementById('exports-list');
-
-            if (!exports || exports.length === 0) {
-                container.innerHTML = '<p class="text-muted">No exports found</p>';
-                return;
-            }
-
-            container.innerHTML = exports.map(exp => `
-                <div class="export-card">
-                    <div class="export-icon">📦</div>
-                    <div class="export-info">
-                        <div class="export-name">${escapeHtml(exp.filename)}</div>
-                        <div class="export-meta">
-                            <span>${formatFileSize(exp.size_bytes)}</span>
-                            <span>•</span>
-                            <span>${formatDateTime(exp.created_at)}</span>
-                        </div>
-                    </div>
-                    <div class="export-actions">
-                        <button class="btn btn-sm btn-secondary" onclick="downloadExport('${exp.filename}')">⬇ Download</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function exportWeekly() {
-            const year = document.getElementById('export-year').value;
-            const week = document.getElementById('export-week').value;
-            const resultDiv = document.getElementById('export-result');
-
-            resultDiv.innerHTML = '<div class="loading-spinner">Exporting...</div>';
-
-            fetch(`/api/usage/export-weekly?year=${year}&week=${week}`, { method: 'POST' })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        resultDiv.innerHTML = `
-                            <div class="export-success">
-                                <h4>✅ Export Successful!</h4>
-                                <p>File: ${escapeHtml(data.filename)}</p>
-                                <p>Records: ${data.records}</p>
-                                <p>Saved to: ${escapeHtml(data.filepath)}</p>
-                            </div>
-                        `;
-                        loadExportsList();
-                    } else {
-                        resultDiv.innerHTML = `
-                            <div class="export-error">
-                                <h4>❌ Export Failed</h4>
-                                <p>${escapeHtml(data.message)}</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    resultDiv.innerHTML = `
-                        <div class="export-error">
-                            <h4>❌ Error</h4>
-                            <p>${escapeHtml(err.message)}</p>
-                        </div>
-                    `;
-                });
-        }
-
-        function exportCurrentWeek() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const week = getWeekNumber(now);
-
-            document.getElementById('export-year').value = year;
-            document.getElementById('export-week').value = week;
-
-            exportWeekly();
-        }
-
-        function downloadExport(filename) {
-            // In a real implementation, this would download the file
-            // For now, show a notification
-            showNotification('info', `Download feature: ${filename}`);
-        }
-
-        function formatDateTime(ts) {
-            if (!ts) return '-';
-            return new Date(ts).toLocaleString();
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
-
-        function showNotification(type, message) {
-            const existing = document.querySelector('.notification');
-            if (existing) existing.remove();
-
-            const notification = document.createElement('div');
-            notification.className = `notification notification-${type}`;
-            notification.innerHTML = `<span>${escapeHtml(message)}</span>`;
-            document.body.appendChild(notification);
-
-            setTimeout(() => notification.classList.add('show'), 10);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-    </script>
-
-    <style>
-        .export-info {
-            background: var(--bg-secondary);
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .export-section {
-            background: var(--bg-secondary);
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .export-section h3 {
-            margin-bottom: 1rem;
-        }
-
-        .export-form {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .form-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .form-group label {
-            font-weight: 500;
-        }
-
-        .form-group select {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background: var(--bg-tertiary);
-            color: var(--text-color);
-        }
-
-        .btn-lg {
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-        }
-
-        .export-result {
-            margin-top: 1rem;
-        }
-
-        .export-success, .export-error {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-        }
-
-        .export-success {
-            background: rgba(46, 204, 113, 0.1);
-            border: 1px solid var(--success-color);
-        }
-
-        .export-error {
-            background: rgba(231, 76, 60, 0.1);
-            border: 1px solid var(--error-color);
-        }
-
-        .exports-grid {
-            display: grid;
-            gap: 1rem;
-        }
-
-        .export-card {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: var(--bg-tertiary);
-            border-radius: 8px;
-        }
-
-        .export-icon {
-            font-size: 2rem;
-        }
-
-        .export-name {
-            font-weight: 500;
-            font-family: monospace;
-        }
-
-        .export-meta {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .export-actions {
-            margin-left: auto;
-        }
-
-        .export-contents {
-            list-style: none;
-            padding: 0;
-        }
-
-        .export-contents li {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .export-contents code {
-            background: var(--bg-tertiary);
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-        }
-    </style>
+    function downloadExport(filename) { showNotification('info', `Download: ${filename}`); }
+  </script>
 </body>
 </html>

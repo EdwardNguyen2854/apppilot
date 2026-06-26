@@ -33,7 +33,69 @@ start_time = time.time()
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
     logger.info("AppPilot starting up...")
+
+    # Auto-start apps that have auto_start enabled
+    try:
+        config = getattr(app.state, 'config', None)
+        process_manager = getattr(app.state, 'process_manager', None)
+        database = getattr(app.state, 'database', None)
+        monitor = getattr(app.state, 'monitor', None)
+        mcp_manager = getattr(app.state, 'mcp_manager', None)
+
+        if config and process_manager:
+            logger.info("Checking for auto-start apps...")
+            apps = config.get_apps()
+
+            for app_entry in apps:
+                if app_entry.get('auto_start', False):
+                    app_id = app_entry.get('id')
+                    if not process_manager.is_process_running(app_id):
+
+                        if app_entry.get('type') == 'mcp':
+                            logger.info(f"Auto-starting MCP app {app_id}...")
+                            try:
+                                if mcp_manager:
+                                    client = await mcp_manager.connect(app_id, app_entry)
+                                    if database:
+                                        database.register_app(app_entry)
+                                        database.start_session(
+                                            app_id=app_id,
+                                            machine_id=config.get_machine_id(),
+                                            user_alias=config.get_user_alias(),
+                                            app_version=app_entry.get('version')
+                                        )
+                                    logger.info(f"Auto-started MCP app {app_id} with {len(client.tools)} tools")
+                            except Exception as e:
+                                logger.warning(f"Failed to auto-start MCP app {app_id}: {e}")
+                        else:
+                            exe_path = app_entry.get('exe', '')
+                            args = app_entry.get('args', [])
+                            log_file = app_entry.get('log_file')
+
+                            logger.info(f"Auto-starting {app_id}...")
+                            success, message = process_manager.start_process(
+                                app_id=app_id,
+                                exe_path=exe_path,
+                                args=args,
+                                log_file=log_file
+                            )
+
+                            if success:
+                                if database:
+                                    database.register_app(app_entry)
+                                    database.start_session(
+                                        app_id=app_id,
+                                        machine_id=config.get_machine_id(),
+                                        user_alias=config.get_user_alias(),
+                                        app_version=app_entry.get('version')
+                                    )
+                                if monitor:
+                                    monitor.start_monitoring(app_entry, interval=10)
+    except Exception as e:
+        logger.error(f"Error during auto-start: {e}", exc_info=True)
+
     yield
+
     logger.info("AppPilot shutting down...")
     if hasattr(app.state, 'mcp_manager'):
         await app.state.mcp_manager.disconnect_all()
@@ -83,6 +145,10 @@ def create_app(config=None, database=None):
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+    web_dir = template_dir
+    if web_dir.exists():
+        app.mount("/web", StaticFiles(directory=str(web_dir), html=True), name="web_pages")
+
     apps_router_configured = init_apps_router(process_manager, database, config, monitor, mcp_manager)
     usage_router_configured = init_usage_router(database, config)
     events_router_configured = init_events_router(database, config)
@@ -108,6 +174,14 @@ def create_app(config=None, database=None):
         if html_path.exists():
             return HTMLResponse(content=html_path.read_text(encoding='utf-8'), status_code=200)
         return HTMLResponse(content="<h1>AppPilot is running</h1><p>Web dashboard not found.</p>", status_code=200)
+
+    @app.get("/{page_name}.html", response_class=HTMLResponse)
+    async def serve_page(page_name: str):
+        """Serve HTML pages directly without /web/ prefix."""
+        html_path = Path(__file__).parent.parent / "web" / f"{page_name}.html"
+        if html_path.exists():
+            return HTMLResponse(content=html_path.read_text(encoding='utf-8'), status_code=200)
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
     @app.get("/health")
     async def health():
@@ -171,61 +245,6 @@ def create_app(config=None, database=None):
             "db_size": db_size
         }
 
-    @app.on_event("startup")
-    async def auto_start_apps():
-        """Auto-start apps that have auto_start enabled."""
-        if config is None:
-            return
-
-        logger.info("Checking for auto-start apps...")
-        apps = config.get_apps()
-
-        fastapi_app = app
-
-        for app_entry in apps:
-            if app_entry.get('auto_start', False):
-                app_id = app_entry.get('id')
-                if not process_manager.is_process_running(app_id):
-
-                    if app_entry.get('type') == 'mcp':
-                        logger.info(f"Auto-starting MCP app {app_id}...")
-                        try:
-                            mcp_manager = fastapi_app.state.mcp_manager
-                            if mcp_manager:
-                                client = await mcp_manager.connect(app_id, app_entry)
-                                database.register_app(app_entry)
-                                database.start_session(
-                                    app_id=app_id,
-                                    machine_id=config.get_machine_id(),
-                                    user_alias=config.get_user_alias(),
-                                    app_version=app_entry.get('version')
-                                )
-                                logger.info(f"Auto-started MCP app {app_id} with {len(client.tools)} tools")
-                        except Exception as e:
-                            logger.warning(f"Failed to auto-start MCP app {app_id}: {e}")
-                    else:
-                        exe_path = app_entry.get('exe', '')
-                        args = app_entry.get('args', [])
-                        log_file = app_entry.get('log_file')
-
-                        logger.info(f"Auto-starting {app_id}...")
-                        success, message = process_manager.start_process(
-                            app_id=app_id,
-                            exe_path=exe_path,
-                            args=args,
-                            log_file=log_file
-                        )
-
-                        if success:
-                            database.register_app(app_entry)
-                            database.start_session(
-                                app_id=app_id,
-                                machine_id=config.get_machine_id(),
-                                user_alias=config.get_user_alias(),
-                                app_version=app_entry.get('version')
-                            )
-                            monitor.start_monitoring(app_entry, interval=10)
-
-        logger.info("AppPilot startup complete")
+    logger.info("AppPilot startup complete")
 
     return app

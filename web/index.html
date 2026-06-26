@@ -1,213 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AppPilot - Local App Dashboard</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="/static/css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AppPilot</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <span class="logo-icon">🚀</span>
-                    <h1>AppPilot</h1>
-                </div>
-                <div class="header-status">
-                    <span class="status-indicator" id="overall-status">
-                        <span class="status-dot online"></span>
-                        <span id="running-count">0</span> / <span id="total-count">0</span> Running
-                    </span>
-                    <button class="btn btn-link" onclick="refreshDashboard()">↻ Refresh</button>
-                    <a href="/web/apps.html" class="btn btn-secondary">All Apps</a>
-                    <a href="/web/usage.html" class="btn btn-secondary">Usage</a>
-                    <a href="/web/mcp.html" class="btn btn-secondary">MCP Tools</a>
-                    <a href="/web/export.html" class="btn btn-secondary">Export</a>
-                </div>
-            </div>
-        </header>
+  <div class="supergraphic"></div>
 
-        <!-- System Stats Bar -->
-        <div class="system-stats" id="system-stats">
-            <div class="stat-card">
-                <div class="stat-label">CPU</div>
-                <div class="stat-value" id="cpu-usage">--%</div>
-                <div class="stat-bar">
-                    <div class="stat-bar-fill" id="cpu-bar" style="width: 0%"></div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Memory</div>
-                <div class="stat-value" id="mem-usage">--%</div>
-                <div class="stat-bar">
-                    <div class="stat-bar-fill" id="mem-bar" style="width: 0%"></div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Disk</div>
-                <div class="stat-value" id="disk-usage">--%</div>
-                <div class="stat-bar">
-                    <div class="stat-bar-fill" id="disk-bar" style="width: 0%"></div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Uptime</div>
-                <div class="stat-value" id="app-uptime">--</div>
-            </div>
-        </div>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/web/index.html" class="logo">
+        <span class="logo-icon">✦</span>
+        AppPilot
+      </a>
+      <nav class="nav">
+        <a href="/web/index.html">Dashboard</a>
+        <a href="/web/apps.html">Apps</a>
+        <a href="/web/usage.html">Usage</a>
+        <a href="/web/mcp.html">MCP</a>
+        <a href="/web/export.html">Export</a>
+        <a href="/web/settings.html">Settings</a>
+      </nav>
+      <div class="header-actions">
+        <span class="status-indicator" id="overall-status">
+          <span class="status-badge online" style="padding:2px 8px"><span class="dot"></span><span id="running-count">0</span>/<span id="total-count">0</span></span>
+        </span>
+        <button class="btn btn-ghost btn-sm" onclick="refreshDashboard()">↻</button>
+      </div>
+    </div>
+  </header>
 
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-            <button class="btn btn-primary" onclick="startAllAutoStart()">
-                ▶ Start Auto-Start Apps
-            </button>
-            <button class="btn btn-warning" onclick="stopAllApps()">
-                ■ Stop All Apps
-            </button>
-            <a href="/web/export.html" class="btn btn-success">
-                📥 Export Weekly Report
-            </a>
-        </div>
-
-        <!-- Apps Grid -->
-        <section class="apps-section">
-            <h2>📦 Your Applications</h2>
-
-            <div class="apps-grid" id="apps-grid" hx-get="/api/apps" hx-trigger="load, every 30s" hx-swap="innerHTML">
-                <div class="loading-spinner">
-                    <div class="spinner"></div>
-                    <p>Loading applications...</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Recent Activity -->
-        <section class="activity-section">
-            <h2>📊 Recent Activity</h2>
-            <div class="activity-list" id="recent-activity">
-                <table class="activity-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>App</th>
-                            <th>Event</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="activity-tbody">
-                        <tr>
-                            <td colspan="4" class="text-muted">Loading recent events...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>AppPilot v1.0.0 | Local dashboard at <span class="mono">http://127.0.0.1:9700</span></p>
-            <p class="text-muted">All data stored locally in <span class="mono">data/usage.db</span></p>
-        </footer>
+  <div class="container">
+    <!-- System Stats -->
+    <div class="system-stats" id="system-stats">
+      <div class="stat-card">
+        <div class="stat-label">CPU</div>
+        <div class="stat-value" id="cpu-usage">--%</div>
+        <div class="stat-bar"><div class="stat-bar-fill" id="cpu-bar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Memory</div>
+        <div class="stat-value" id="mem-usage">--%</div>
+        <div class="stat-bar"><div class="stat-bar-fill" id="mem-bar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Disk</div>
+        <div class="stat-value" id="disk-usage">--%</div>
+        <div class="stat-bar"><div class="stat-bar-fill" id="disk-bar" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value" id="app-uptime">--</div>
+      </div>
     </div>
 
-    <script src="/static/js/app.js"></script>
-    <script>
-        // Initial load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadApps();
-            loadSystemStats();
-            loadRecentActivity();
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <button class="btn btn-primary" onclick="startAllAutoStart()">▶ Start Auto-Start</button>
+      <button class="btn btn-warning" onclick="stopAllApps()">■ Stop All</button>
+      <a href="/web/export.html" class="btn btn-success">⬇ Export Report</a>
+    </div>
 
-            // Set up periodic refresh
-            setInterval(loadSystemStats, 10000);
-            setInterval(loadRecentActivity, 15000);
-        });
+    <!-- Apps Section -->
+    <section class="apps-section">
+      <div class="section-header">
+        <h2>Applications <span id="running-count-header"></span></h2>
+      </div>
 
-        // HTMX event handlers
-        document.body.addEventListener('htmx:afterSwap', function(evt) {
-            if (evt.detail.target.id === 'apps-grid') {
-                updateOverallStatus();
-            }
-        });
+      <!-- Toolbar -->
+      <div class="dashboard-toolbar">
+        <div class="view-toggle">
+          <button class="btn active" data-view="card" onclick="switchView('card')">Cards</button>
+          <button class="btn" data-view="list" onclick="switchView('list')">List</button>
+          <button class="btn" data-view="table" onclick="switchView('table')">Table</button>
+        </div>
+        <input type="text" id="dash-search" class="search-input" placeholder="Search apps..." oninput="applyFilters()">
+        <select id="dash-filter-type" class="filter-select" onchange="applyFilters()">
+          <option value="">All Types</option>
+          <option value="desktop">Desktop</option>
+          <option value="web">Web</option>
+          <option value="api">API</option>
+          <option value="external">External</option>
+          <option value="mcp">MCP</option>
+          <option value="background">Background</option>
+        </select>
+        <select id="dash-filter-status" class="filter-select" onchange="applyFilters()">
+          <option value="">All Status</option>
+          <option value="running">Running</option>
+          <option value="stopped">Stopped</option>
+        </select>
+        <div class="sort-control">
+          <select id="dash-sort-field" class="filter-select" onchange="applyFilters()">
+            <option value="name">Name</option>
+            <option value="type">Type</option>
+            <option value="status">Status</option>
+            <option value="cpu">CPU</option>
+            <option value="memory">Memory</option>
+            <option value="uptime">Uptime</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="dash-sort-dir" onclick="toggleSortDir()" title="Toggle sort direction">&#x25B2;</button>
+        </div>
+        <span class="text-muted" style="font-size:0.8rem;margin-left:auto">Auto-refreshes every 30s</span>
+      </div>
 
-        function loadApps() {
-            fetch('/api/apps')
-                .then(r => r.json())
-                .then(data => {
-                    renderApps(data.apps);
-                    updateOverallStatus();
-                })
-                .catch(err => console.error('Failed to load apps:', err));
+      <!-- Card View -->
+      <div class="apps-grid" id="apps-grid">
+        <div class="loading-spinner"><div class="spinner"></div><p>Loading applications...</p></div>
+      </div>
+
+      <!-- List View -->
+      <div class="apps-list" id="apps-list-view" style="display:none"></div>
+
+      <!-- Table View -->
+      <div class="dashboard-table-wrapper" id="apps-table-view" style="display:none">
+        <table class="dashboard-table">
+          <thead>
+            <tr>
+              <th class="sortable" onclick="setSortField('name')">App<span class="sort-arrow" id="sort-arrow-name">&#x25B2;</span></th>
+              <th class="sortable" onclick="setSortField('type')">Type<span class="sort-arrow" id="sort-arrow-type"></span></th>
+              <th class="sortable" onclick="setSortField('status')">Status<span class="sort-arrow" id="sort-arrow-status"></span></th>
+              <th class="sortable" onclick="setSortField('pid')">PID<span class="sort-arrow" id="sort-arrow-pid"></span></th>
+              <th class="sortable" onclick="setSortField('cpu')">CPU<span class="sort-arrow" id="sort-arrow-cpu"></span></th>
+              <th class="sortable" onclick="setSortField('memory')">Memory<span class="sort-arrow" id="sort-arrow-memory"></span></th>
+              <th class="sortable" onclick="setSortField('port')">Port<span class="sort-arrow" id="sort-arrow-port"></span></th>
+              <th class="sortable" onclick="setSortField('uptime')">Uptime<span class="sort-arrow" id="sort-arrow-uptime"></span></th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="dashboard-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Recent Activity -->
+    <section class="activity-section">
+      <div class="section-header">
+        <h2>Recent Activity</h2>
+      </div>
+      <table class="activity-table">
+        <thead><tr><th>Time</th><th>App</th><th>Event</th><th>Status</th></tr></thead>
+        <tbody id="activity-tbody">
+          <tr><td colspan="4" class="text-muted" style="padding:20px;text-align:center">Loading recent events...</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <p>AppPilot v1.0.0 · <a href="http://127.0.0.1:9700">127.0.0.1:9700</a></p>
+  </footer>
+
+  <script src="/static/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      loadApps();
+      loadSystemStats();
+      loadRecentActivity();
+      setInterval(loadApps, 30000);
+      setInterval(loadSystemStats, 10000);
+      setInterval(loadRecentActivity, 15000);
+    });
+
+    function loadApps() {
+      fetch('/api/apps').then(r=>r.json()).then(data => { renderApps(data.apps); }).catch(console.error);
+    }
+
+    function loadSystemStats() {
+      fetch('/api/system/stats').then(r=>r.json()).then(updateSystemStats).catch(console.error);
+    }
+
+    function loadRecentActivity() {
+      fetch('/api/usage/events?limit=10').then(r=>r.json()).then(data => {
+        const tbody = document.getElementById('activity-tbody');
+        if (!data.events || data.events.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="text-muted" style="padding:20px;text-align:center">No recent activity</td></tr>';
+          return;
         }
+        tbody.innerHTML = data.events.map(e => `
+          <tr>
+            <td>${formatTime(e.timestamp)}</td>
+            <td><span class="app-tag">${escapeHtml(e.app_id)}</span></td>
+            <td>${escapeHtml(e.event_name)}</td>
+            <td><span class="status-badge ${e.success ? 'success' : 'error'}"><span class="dot"></span>${e.success ? 'OK' : 'Failed'}</span></td>
+          </tr>
+        `).join('');
+      }).catch(console.error);
+    }
 
-        function loadSystemStats() {
-            fetch('/api/system/stats')
-                .then(r => r.json())
-                .then(data => {
-                    updateSystemStats(data);
-                })
-                .catch(err => console.error('Failed to load system stats:', err));
-        }
+    function startAllAutoStart() {
+      fetch('/api/apps').then(r=>r.json()).then(data => {
+        const apps = data.apps.filter(a => a.auto_start && !a.running);
+        if (apps.length === 0) { showNotification('info', 'No auto-start apps to launch'); return; }
+        apps.forEach(a => startApp(a.id));
+      });
+    }
 
-        function loadRecentActivity() {
-            fetch('/api/usage/events?limit=10')
-                .then(r => r.json())
-                .then(data => {
-                    const tbody = document.getElementById('activity-tbody');
-                    if (!data.events || data.events.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="text-muted">No recent activity</td></tr>';
-                        return;
-                    }
+    async function stopAllApps() {
+      try {
+        const data = await fetch('/api/apps').then(r => r.json());
+        const apps = data.apps.filter(a => a.running);
+        if (apps.length === 0) { showNotification('info', 'No running apps'); return; }
+        apps.forEach(a => stopApp(a.id));
+      } catch (err) { showNotification('error', 'Failed to stop apps'); }
+    }
 
-                    tbody.innerHTML = data.events.map(event => `
-                        <tr>
-                            <td>${formatTime(event.timestamp)}</td>
-                            <td><span class="app-tag">${escapeHtml(event.app_id)}</span></td>
-                            <td>${escapeHtml(event.event_name)}</td>
-                            <td><span class="status-badge ${event.success ? 'success' : 'error'}">${event.success ? 'OK' : 'Failed'}</span></td>
-                        </tr>
-                    `).join('');
-                })
-                .catch(err => console.error('Failed to load activity:', err));
-        }
-
-        function startAllAutoStart() {
-            fetch('/api/apps')
-                .then(r => r.json())
-                .then(data => {
-                    const autoStartApps = data.apps.filter(a => a.auto_start && !a.running);
-                    if (autoStartApps.length === 0) {
-                        showNotification('info', 'No auto-start apps to launch');
-                        return;
-                    }
-                    autoStartApps.forEach(app => startApp(app.id));
-                });
-        }
-
-        async function stopAllApps() {
-            try {
-                const response = await fetch('/api/apps');
-                const data = await response.json();
-                const runningApps = data.apps.filter(a => a.running);
-                if (runningApps.length === 0) {
-                    showNotification('info', 'No running apps to stop');
-                    return;
-                }
-                runningApps.forEach(app => stopApp(app.id));
-            } catch (err) {
-                showNotification('error', 'Failed to stop apps');
-            }
-        }
-
-        function refreshDashboard() {
-            loadApps();
-            loadSystemStats();
-            loadRecentActivity();
-            showNotification('info', 'Dashboard refreshed');
-        }
-    </script>
+    function refreshDashboard() { loadApps(); loadSystemStats(); loadRecentActivity(); showNotification('info', 'Dashboard refreshed'); }
+  </script>
 </body>
 </html>

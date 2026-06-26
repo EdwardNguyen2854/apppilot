@@ -1,624 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Apps - AppPilot</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="/static/css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apps - AppPilot</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <span class="logo-icon">🚀</span>
-                    <h1>AppPilot</h1>
-                </div>
-                <div class="header-nav">
-                    <a href="/web/index.html" class="btn btn-link">← Dashboard</a>
-                    <a href="/web/mcp.html" class="btn btn-link">MCP Tools</a>
-                    <a href="/web/usage.html" class="btn btn-link">Usage</a>
-                    <a href="/web/export.html" class="btn btn-link">Export</a>
-                    <a href="/web/settings.html" class="btn btn-link">Settings</a>
-                </div>
-            </div>
-        </header>
+  <div class="supergraphic"></div>
 
-        <main class="main-content">
-            <div class="page-header">
-                <h2>📦 All Applications</h2>
-                <div class="filter-bar">
-                    <input type="text" id="search-apps" placeholder="Search apps..." class="search-input" oninput="filterApps()">
-                    <select id="filter-type" class="filter-select" onchange="filterApps()">
-                        <option value="">All Types</option>
-                        <option value="desktop">Desktop</option>
-                        <option value="web">Web</option>
-                        <option value="api">API</option>
-                        <option value="external">External</option>
-                        <option value="mcp">MCP</option>
-                    </select>
-                    <select id="filter-status" class="filter-select" onchange="filterApps()">
-                        <option value="">All Status</option>
-                        <option value="running">Running</option>
-                        <option value="stopped">Stopped</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Summary Cards -->
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <div class="summary-icon">📦</div>
-                    <div class="summary-content">
-                        <div class="summary-value" id="total-apps">0</div>
-                        <div class="summary-label">Total Apps</div>
-                    </div>
-                </div>
-                <div class="summary-card success">
-                    <div class="summary-icon">▶</div>
-                    <div class="summary-content">
-                        <div class="summary-value" id="running-apps">0</div>
-                        <div class="summary-label">Running</div>
-                    </div>
-                </div>
-                <div class="summary-card warning">
-                    <div class="summary-icon">■</div>
-                    <div class="summary-content">
-                        <div class="summary-value" id="stopped-apps">0</div>
-                        <div class="summary-label">Stopped</div>
-                    </div>
-                </div>
-                <div class="summary-card info">
-                    <div class="summary-icon">🔗</div>
-                    <div class="summary-content">
-                        <div class="summary-value" id="external-apps">0</div>
-                        <div class="summary-label">External</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Apps Table -->
-            <div class="apps-table-container">
-                <table class="apps-table">
-                    <thead>
-                        <tr>
-                            <th>App</th>
-                            <th>Type</th>
-                            <th>Status</th>
-                            <th>PID</th>
-                            <th>CPU</th>
-                            <th>Memory</th>
-                            <th>Port</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="apps-table-body">
-                        <tr>
-                            <td colspan="8" class="loading-cell">
-                                <div class="loading-spinner">
-                                    <div class="spinner"></div>
-                                    <span>Loading applications...</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Session History -->
-            <section class="sessions-section">
-                <h3>📊 Recent Sessions</h3>
-                <div id="sessions-container" class="sessions-list">
-                    <p class="text-muted">Loading session history...</p>
-                </div>
-            </section>
-        </main>
-
-        <footer class="footer">
-            <p>AppPilot v1.0.0 | <a href="/web/index.html">Back to Dashboard</a></p>
-        </footer>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/web/index.html" class="logo">
+        <span class="logo-icon">✦</span>
+        AppPilot
+      </a>
+      <nav class="nav">
+        <a href="/web/index.html">Dashboard</a>
+        <a href="/web/apps.html">Apps</a>
+        <a href="/web/usage.html">Usage</a>
+        <a href="/web/mcp.html">MCP</a>
+        <a href="/web/export.html">Export</a>
+        <a href="/web/settings.html">Settings</a>
+      </nav>
+      <div class="header-actions"></div>
     </div>
+  </header>
 
-    <script src="/static/js/app.js"></script>
-    <script>
-        let allApps = [];
+  <div class="container">
+    <main class="main-content">
+      <div class="page-header">
+        <h2>All Applications</h2>
+        <div class="filter-bar">
+          <input type="text" id="search-apps" placeholder="Search apps..." class="search-input" oninput="filterApps()">
+          <select id="filter-type" class="filter-select" onchange="filterApps()">
+            <option value="">All Types</option>
+            <option value="desktop">Desktop</option>
+            <option value="web">Web</option>
+            <option value="api">API</option>
+            <option value="external">External</option>
+            <option value="mcp">MCP</option>
+            <option value="background">Background</option>
+          </select>
+          <select id="filter-status" class="filter-select" onchange="filterApps()">
+            <option value="">All Status</option>
+            <option value="running">Running</option>
+            <option value="stopped">Stopped</option>
+          </select>
+        </div>
+      </div>
 
-        document.addEventListener('DOMContentLoaded', function() {
-            loadAllApps();
-            loadSessions();
-        });
+      <!-- Summary Cards -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="summary-icon">✦</div>
+          <div class="summary-content">
+            <div class="summary-value" id="total-apps">0</div>
+            <div class="summary-label">Total Apps</div>
+          </div>
+        </div>
+        <div class="summary-card success">
+          <div class="summary-icon">▶</div>
+          <div class="summary-content">
+            <div class="summary-value" id="running-apps">0</div>
+            <div class="summary-label">Running</div>
+          </div>
+        </div>
+        <div class="summary-card warning">
+          <div class="summary-icon">■</div>
+          <div class="summary-content">
+            <div class="summary-value" id="stopped-apps">0</div>
+            <div class="summary-label">Stopped</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon">🔗</div>
+          <div class="summary-content">
+            <div class="summary-value" id="external-apps">0</div>
+            <div class="summary-label">External</div>
+          </div>
+        </div>
+      </div>
 
-        function loadAllApps() {
-            fetch('/api/apps')
-                .then(r => r.json())
-                .then(data => {
-                    allApps = data.apps || [];
-                    renderAppsTable(allApps);
-                    updateSummaryCards(allApps);
-                })
-                .catch(err => {
-                    console.error('Failed to load apps:', err);
-                    document.getElementById('apps-table-body').innerHTML =
-                        '<tr><td colspan="8" class="error-cell">Failed to load applications</td></tr>';
-                });
-        }
+      <!-- Apps Table -->
+      <div style="overflow-x:auto;margin-bottom:24px">
+        <table class="apps-table">
+          <thead>
+            <tr><th>App</th><th>Type</th><th>Status</th><th>PID</th><th>CPU</th><th>Memory</th><th>Port</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="apps-table-body">
+            <tr><td colspan="8" class="loading-cell"><div class="loading-spinner"><div class="spinner"></div><span>Loading...</span></div></td></tr>
+          </tbody>
+        </table>
+      </div>
 
-        function renderAppsTable(apps) {
-            const tbody = document.getElementById('apps-table-body');
+      <!-- Sessions -->
+      <section class="sessions-section">
+        <h3>Recent Sessions</h3>
+        <div id="sessions-container" class="sessions-list">
+          <p class="text-muted">Loading session history...</p>
+        </div>
+      </section>
+    </main>
+  </div>
 
-            if (apps.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">No apps configured</td></tr>';
-                return;
-            }
+  <footer class="footer">
+    <p>AppPilot v1.0.0 · <a href="/web/index.html">Dashboard</a></p>
+  </footer>
 
-            tbody.innerHTML = apps.map(app => `
-                <tr class="app-row ${app.running ? 'running' : ''}" data-app-id="${app.id}" data-type="${app.type}">
-                    <td class="app-name-cell">
-                        <span class="app-icon">${getAppIcon(app.type)}</span>
-                        <div class="app-name-info">
-                            <span class="app-name">${escapeHtml(app.name)}</span>
-                            <span class="app-id">${escapeHtml(app.id)}</span>
-                        </div>
-                    </td>
-                    <td><span class="type-badge type-${app.type}">${app.type}</span></td>
-                    <td>
-                        <span class="status-badge ${app.running ? 'online' : 'offline'}">
-                            ${app.running ? 'Online' : 'Offline'}
-                        </span>
-                    </td>
-                    <td class="mono">${app.pid || '-'}</td>
-                    <td>${app.cpu_percent ? app.cpu_percent.toFixed(1) + '%' : '-'}</td>
-                    <td>${app.memory_mb ? app.memory_mb.toFixed(1) + ' MB' : '-'}</td>
-                    <td class="mono">${app.port || '-'}</td>
-                    <td class="actions-cell">
-                        ${app.running ? `
-                            <button class="btn btn-sm btn-danger" onclick="stopApp('${app.id}')">Stop</button>
-                            <button class="btn btn-sm btn-warning" onclick="restartApp('${app.id}')">Restart</button>
-                            ${app.url ? `<button class="btn btn-sm btn-primary" onclick="openUrl('${app.url}')">Open</button>` : ''}
-                        ` : `
-                            <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
-                        `}
-                        <button class="btn btn-sm btn-secondary" onclick="viewAppSessions('${app.id}')">Sessions</button>
-                        <button class="btn btn-sm btn-secondary" onclick="viewLogs('${app.id}')">Logs</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+  <script src="/static/js/app.js"></script>
+  <script>
+    let allApps = [];
 
-        function updateSummaryCards(apps) {
-            document.getElementById('total-apps').textContent = apps.length;
-            document.getElementById('running-apps').textContent = apps.filter(a => a.running).length;
-            document.getElementById('stopped-apps').textContent = apps.filter(a => !a.running).length;
-            document.getElementById('external-apps').textContent = apps.filter(a => a.type === 'external').length;
-        }
+    document.addEventListener('DOMContentLoaded', function() { loadAllApps(); loadSessions(); });
 
-        function filterApps() {
-            const search = document.getElementById('search-apps').value.toLowerCase();
-            const typeFilter = document.getElementById('filter-type').value;
-            const statusFilter = document.getElementById('filter-status').value;
+    function loadAllApps() {
+      fetch('/api/apps').then(r=>r.json()).then(data => {
+        allApps = data.apps || [];
+        renderAppsTable(allApps);
+        updateSummaryCards(allApps);
+      }).catch(err => {
+        document.getElementById('apps-table-body').innerHTML = '<tr><td colspan="8" class="error-cell">Failed to load applications</td></tr>';
+      });
+    }
 
-            const filtered = allApps.filter(app => {
-                const matchesSearch = app.name.toLowerCase().includes(search) ||
-                                     app.id.toLowerCase().includes(search) ||
-                                     (app.description || '').toLowerCase().includes(search);
-                const matchesType = !typeFilter || app.type === typeFilter;
-                const matchesStatus = !statusFilter ||
-                    (statusFilter === 'running' && app.running) ||
-                    (statusFilter === 'stopped' && !app.running);
+    function renderAppsTable(apps) {
+      const tbody = document.getElementById('apps-table-body');
+      if (apps.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">No apps configured</td></tr>'; return; }
+      tbody.innerHTML = apps.map(app => `
+        <tr class="app-row${app.running ? ' running' : ''}" data-app-id="${app.id}" data-type="${app.type}">
+          <td class="app-name-cell">
+            <span style="font-size:1.1rem">${getAppIcon(app.type)}</span>
+            <div class="app-name-info">
+              <span class="app-name">${escapeHtml(app.name)}</span>
+              <span class="app-id">${escapeHtml(app.id)}</span>
+            </div>
+          </td>
+          <td><span class="type-badge type-${app.type}">${app.type}</span></td>
+          <td><span class="status-badge${app.running ? ' online' : ' offline'}"><span class="dot"></span>${app.running ? 'Online' : 'Offline'}</span></td>
+          <td class="mono">${app.pid || '-'}</td>
+          <td>${app.cpu_percent ? app.cpu_percent.toFixed(1) + '%' : '-'}</td>
+          <td>${app.memory_mb ? app.memory_mb.toFixed(1) + ' MB' : '-'}</td>
+          <td class="mono">${app.port || '-'}</td>
+          <td class="actions-cell">
+            ${app.running ? `
+              <button class="btn btn-sm btn-danger" onclick="stopApp('${app.id}')">Stop</button>
+              <button class="btn btn-sm btn-warning" onclick="restartApp('${app.id}')">Restart</button>
+              ${app.url ? `<button class="btn btn-sm btn-primary" onclick="openUrl('${app.url}')">Open</button>` : ''}
+            ` : `
+              <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
+            `}
+            <button class="btn btn-sm btn-secondary" onclick="viewAppSessions('${app.id}')">Sessions</button>
+            <button class="btn btn-sm btn-secondary" onclick="viewLogs('${app.id}')">Logs</button>
+          </td>
+        </tr>
+      `).join('');
+    }
 
-                return matchesSearch && matchesType && matchesStatus;
-            });
+    function updateSummaryCards(apps) {
+      document.getElementById('total-apps').textContent = apps.length;
+      document.getElementById('running-apps').textContent = apps.filter(a => a.running).length;
+      document.getElementById('stopped-apps').textContent = apps.filter(a => !a.running).length;
+      document.getElementById('external-apps').textContent = apps.filter(a => a.type === 'external').length;
+    }
 
-            renderAppsTable(filtered);
-        }
+    function filterApps() {
+      const search = document.getElementById('search-apps').value.toLowerCase();
+      const typeFilter = document.getElementById('filter-type').value;
+      const statusFilter = document.getElementById('filter-status').value;
+      const filtered = allApps.filter(app => {
+        const ms = app.name.toLowerCase().includes(search) || app.id.toLowerCase().includes(search) || (app.description||'').toLowerCase().includes(search);
+        const mt = !typeFilter || app.type === typeFilter;
+        const mst = !statusFilter || (statusFilter === 'running' && app.running) || (statusFilter === 'stopped' && !app.running);
+        return ms && mt && mst;
+      });
+      renderAppsTable(filtered);
+    }
 
-        function loadSessions() {
-            fetch('/api/usage/sessions?limit=20')
-                .then(r => r.json())
-                .then(data => {
-                    const container = document.getElementById('sessions-container');
-                    if (!data.sessions || data.sessions.length === 0) {
-                        container.innerHTML = '<p class="text-muted">No session history</p>';
-                        return;
-                    }
+    function loadSessions() {
+      fetch('/api/usage/sessions?limit=20').then(r=>r.json()).then(data => {
+        const c = document.getElementById('sessions-container');
+        if (!data.sessions || data.sessions.length === 0) { c.innerHTML = '<p class="text-muted">No session history</p>'; return; }
+        c.innerHTML = `<table class="data-table"><thead><tr><th>App</th><th>Started</th><th>Ended</th><th>Duration</th><th>Exit</th><th>Crashed</th></tr></thead><tbody>
+          ${data.sessions.map(s => `
+            <tr${s.crash_detected ? ' class="crash-row"' : ''}>
+              <td><span class="app-tag">${escapeHtml(s.app_id)}</span></td>
+              <td>${formatDateTime(s.started_at)}</td>
+              <td>${s.stopped_at ? formatDateTime(s.stopped_at) : '-'}</td>
+              <td>${s.duration_sec ? formatDuration(s.duration_sec) : '-'}</td>
+              <td class="mono">${s.exit_code ?? '-'}</td>
+              <td>${s.crash_detected ? '<span class="status-badge error"><span class="dot"></span>Yes</span>' : '<span class="status-badge success"><span class="dot"></span>No</span>'}</td>
+            </tr>`).join('')}</tbody></table>`;
+      }).catch(() => document.getElementById('sessions-container').innerHTML = '<p class="text-muted">Failed to load sessions</p>');
+    }
 
-                    container.innerHTML = `
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>App</th>
-                                    <th>Started</th>
-                                    <th>Ended</th>
-                                    <th>Duration</th>
-                                    <th>Exit Code</th>
-                                    <th>Crashed</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.sessions.map(s => `
-                                    <tr class="${s.crash_detected ? 'crash-row' : ''}">
-                                        <td><span class="app-tag">${escapeHtml(s.app_id)}</span></td>
-                                        <td>${formatDateTime(s.started_at)}</td>
-                                        <td>${s.stopped_at ? formatDateTime(s.stopped_at) : '-'}</td>
-                                        <td>${s.duration_sec ? formatDuration(s.duration_sec) : '-'}</td>
-                                        <td class="mono">${s.exit_code ?? '-'}</td>
-                                        <td>${s.crash_detected ? '<span class="status-badge error">Yes</span>' : '<span class="status-badge success">No</span>'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                })
-                .catch(err => {
-                    document.getElementById('sessions-container').innerHTML =
-                        '<p class="text-muted">Failed to load sessions</p>';
-                });
-        }
-
-        function viewAppSessions(appId) {
-            fetch(`/api/apps/${appId}/sessions?limit=10`)
-                .then(r => r.json())
-                .then(data => {
-                    showSessionsModal(appId, data.sessions);
-                })
-                .catch(err => showNotification('error', 'Failed to load sessions'));
-        }
-
-        function showSessionsModal(appId, sessions) {
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content modal-lg">
-                    <div class="modal-header">
-                        <h3>Sessions: ${escapeHtml(appId)}</h3>
-                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
-                    </div>
-                    <div class="modal-body">
-                        ${sessions.length === 0 ? '<p>No sessions recorded</p>' : `
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Started</th>
-                                        <th>Ended</th>
-                                        <th>Duration</th>
-                                        <th>Exit</th>
-                                        <th>Crash</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${sessions.map(s => `
-                                        <tr>
-                                            <td>${formatDateTime(s.started_at)}</td>
-                                            <td>${s.stopped_at ? formatDateTime(s.stopped_at) : 'Running'}</td>
-                                            <td>${s.duration_sec ? formatDuration(s.duration_sec) : '-'}</td>
-                                            <td>${s.exit_code ?? '-'}</td>
-                                            <td>${s.crash_detected ? 'Yes' : 'No'}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        `}
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        function viewLogs(appId) {
-            fetch(`/api/apps/${appId}/logs?lines=100`)
-                .then(r => r.json())
-                .then(result => showLogModal(appId, result.logs))
-                .catch(err => showNotification('error', 'Failed to load logs'));
-        }
-
-        function showLogModal(appId, logs) {
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content modal-xl">
-                    <div class="modal-header">
-                        <h3>Logs: ${escapeHtml(appId)}</h3>
-                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <pre class="log-content">${escapeHtml(logs.join('\n'))}</pre>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        async function startApp(appId) {
-            try {
-                const response = await fetch(`/api/apps/${appId}/start`, { method: 'POST' });
-                const result = await response.json();
-                showNotification(result.success ? 'success' : 'error', result.message);
-                if (result.success) loadAllApps();
-            } catch (err) {
-                showNotification('error', 'Failed to start app');
-            }
-        }
-
-        async function stopApp(appId) {
-            try {
-                const response = await fetch(`/api/apps/${appId}/stop`, { method: 'POST' });
-                const result = await response.json();
-                showNotification(result.success ? 'success' : 'error', result.message);
-                if (result.success) loadAllApps();
-            } catch (err) {
-                showNotification('error', 'Failed to stop app');
-            }
-        }
-
-        async function restartApp(appId) {
-            try {
-                const response = await fetch(`/api/apps/${appId}/restart`, { method: 'POST' });
-                const result = await response.json();
-                showNotification(result.success ? 'success' : 'error', result.message);
-                if (result.success) loadAllApps();
-            } catch (err) {
-                showNotification('error', 'Failed to restart app');
-            }
-        }
-
-        function openUrl(url) {
-            window.open(url, '_blank');
-        }
-
-        function showNotification(type, message) {
-            const existing = document.querySelector('.notification');
-            if (existing) existing.remove();
-
-            const notification = document.createElement('div');
-            notification.className = `notification notification-${type}`;
-            notification.innerHTML = `<span>${escapeHtml(message)}</span>`;
-            document.body.appendChild(notification);
-
-            setTimeout(() => notification.classList.add('show'), 10);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-
-        function getAppIcon(type) {
-            const icons = {
-                'desktop': '🖥️',
-                'web': '🌐',
-                'api': '⚙️',
-                'background': '🔄',
-                'external': '🔗',
-                'mcp': '🔌'
-            };
-            return icons[type] || '📦';
-        }
-
-        function formatDateTime(ts) {
-            if (!ts) return '-';
-            return new Date(ts).toLocaleString();
-        }
-
-        function formatDuration(seconds) {
-            if (!seconds) return '-';
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            if (h > 0) return `${h}h ${m}m ${s}s`;
-            if (m > 0) return `${m}m ${s}s`;
-            return `${s}s`;
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-    </script>
-
-    <style>
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .filter-bar {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        .search-input, .filter-select {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background: var(--bg-secondary);
-            color: var(--text-color);
-            font-size: 0.9rem;
-        }
-
-        .search-input {
-            width: 200px;
-        }
-
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .summary-card {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 1.25rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .summary-card.success { border-left: 3px solid var(--success-color); }
-        .summary-card.warning { border-left: 3px solid var(--warning-color); }
-        .summary-card.info { border-left: 3px solid var(--info-color); }
-
-        .summary-icon {
-            font-size: 1.5rem;
-            opacity: 0.8;
-        }
-
-        .summary-value {
-            font-size: 1.75rem;
-            font-weight: 600;
-        }
-
-        .summary-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        .apps-table-container {
-            overflow-x: auto;
-            margin-bottom: 2rem;
-        }
-
-        .apps-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .apps-table th {
-            text-align: left;
-            padding: 1rem;
-            background: var(--bg-tertiary);
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-muted);
-        }
-
-        .apps-table td {
-            padding: 1rem;
-            border-top: 1px solid var(--border-color);
-            vertical-align: middle;
-        }
-
-        .app-name-cell {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .app-icon {
-            font-size: 1.25rem;
-        }
-
-        .app-name-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .app-name {
-            font-weight: 500;
-        }
-
-        .app-id {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            font-family: monospace;
-        }
-
-        .type-badge {
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            text-transform: capitalize;
-        }
-
-        .type-desktop { background: #e3f2fd; color: #1565c0; }
-        .type-web { background: #e8f5e9; color: #2e7d32; }
-        .type-api { background: #fff3e0; color: #ef6c00; }
-        .type-external { background: #f3e5f5; color: #7b1fa2; }
-        .type-mcp { background: #e0f7fa; color: #00838f; }
-
-        .mono {
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-
-        .actions-cell {
-            white-space: nowrap;
-        }
-
-        .actions-cell .btn {
-            margin-right: 0.25rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .loading-cell, .empty-cell, .error-cell {
-            text-align: center;
-            padding: 2rem !important;
-            color: var(--text-muted);
-        }
-
-        .app-row.running {
-            background: rgba(46, 204, 113, 0.05);
-        }
-
-        .crash-row {
-            background: rgba(231, 76, 60, 0.05);
-        }
-
-        .sessions-section {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-
-        .sessions-section h3 {
-            margin-bottom: 1rem;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .data-table th, .data-table td {
-            text-align: left;
-            padding: 0.75rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .data-table th {
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        .app-tag {
-            background: var(--bg-tertiary);
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-family: monospace;
-        }
-
-        .modal-lg .modal-content { max-width: 700px; }
-        .modal-xl .modal-content { max-width: 900px; }
-    </style>
+    function viewAppSessions(appId) {
+      fetch(`/api/apps/${appId}/sessions?limit=10`).then(r=>r.json()).then(data => showSessionsModal(appId, data.sessions)).catch(() => showNotification('error', 'Failed'));
+    }
+  </script>
 </body>
 </html>

@@ -1,675 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - AppPilot</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - AppPilot</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header admin-header">
-            <div class="header-content">
-                <div class="logo">
-                    <span class="logo-icon">🛡️</span>
-                    <h1>AppPilot Admin</h1>
-                </div>
-                <div class="header-nav">
-                    <button class="btn btn-link" onclick="showSection('dashboard')">📊 Dashboard</button>
-                    <button class="btn btn-link" onclick="showSection('import')">📥 Import</button>
-                    <button class="btn btn-link" onclick="showSection('reports')">📋 Reports</button>
-                    <button class="btn btn-link" onclick="showSection('settings')">⚙️ Settings</button>
-                </div>
-            </div>
-        </header>
+  <div class="supergraphic"></div>
 
-        <main class="main-content">
-            <!-- Dashboard Section -->
-            <section id="section-dashboard" class="admin-section">
-                <h2>📊 Usage Dashboard</h2>
-
-                <!-- Summary Stats -->
-                <div class="admin-summary">
-                    <div class="summary-card">
-                        <div class="summary-icon">👥</div>
-                        <div class="summary-content">
-                            <div class="summary-value" id="total-users">--</div>
-                            <div class="summary-label">Total Users</div>
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-icon">📱</div>
-                        <div class="summary-content">
-                            <div class="summary-value" id="total-app-sessions">--</div>
-                            <div class="summary-label">App Sessions</div>
-                        </div>
-                    </div>
-                    <div class="summary-card">
-                        <div class="summary-icon">⏱️</div>
-                        <div class="summary-content">
-                            <div class="summary-value" id="total-runtime">--</div>
-                            <div class="summary-label">Total Runtime</div>
-                        </div>
-                    </div>
-                    <div class="summary-card error">
-                        <div class="summary-icon">💥</div>
-                        <div class="summary-content">
-                            <div class="summary-value" id="total-crashes">--</div>
-                            <div class="summary-label">Crashes</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Charts -->
-                <div class="admin-charts">
-                    <div class="chart-container">
-                        <h3>App Usage by Session Count</h3>
-                        <canvas id="app-usage-chart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <h3>Users Activity</h3>
-                        <canvas id="users-chart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Top Apps Table -->
-                <div class="admin-table-section">
-                    <h3>🏆 Top Applications</h3>
-                    <table class="admin-table" id="top-apps-table">
-                        <thead>
-                            <tr>
-                                <th>App</th>
-                                <th>Sessions</th>
-                                <th>Runtime</th>
-                                <th>Users</th>
-                                <th>Crashes</th>
-                            </tr>
-                        </thead>
-                        <tbody id="top-apps-tbody">
-                            <tr><td colspan="5" class="loading-cell">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Missing Reports -->
-                <div class="admin-table-section">
-                    <h3>⚠️ Users with Missing Reports</h3>
-                    <div id="missing-reports" class="missing-reports-list">
-                        <p class="text-muted">Loading...</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Import Section -->
-            <section id="section-import" class="admin-section" style="display:none;">
-                <h2>📥 Import Weekly Reports</h2>
-
-                <div class="import-info">
-                    <p>Import ZIP files exported from user machines. The admin tool will merge data into the master database.</p>
-                </div>
-
-                <div class="import-dropzone" id="import-dropzone">
-                    <div class="dropzone-content">
-                        <div class="dropzone-icon">📦</div>
-                        <p>Drag & drop ZIP files here</p>
-                        <p>or</p>
-                        <input type="file" id="import-file-input" accept=".zip" style="display:none;">
-                        <button class="btn btn-primary" onclick="document.getElementById('import-file-input').click()">
-                            Browse Files
-                        </button>
-                    </div>
-                </div>
-
-                <div id="import-progress" class="import-progress"></div>
-
-                <div class="import-history">
-                    <h3>📋 Import History</h3>
-                    <div id="import-history-list">
-                        <p class="text-muted">No imports yet</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Reports Section -->
-            <section id="section-reports" class="admin-section" style="display:none;">
-                <h2>📋 Generate Reports</h2>
-
-                <div class="report-form">
-                    <div class="form-group">
-                        <label>Report Type:</label>
-                        <select id="report-type">
-                            <option value="summary">Summary Report</option>
-                            <option value="detailed">Detailed Usage Report</option>
-                            <option value="crashes">Crash Report</option>
-                            <option value="adoption">App Adoption Report</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Format:</label>
-                        <select id="report-format">
-                            <option value="csv">CSV</option>
-                            <option value="excel">Excel (.xlsx)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Date Range:</label>
-                        <select id="report-range">
-                            <option value="7">Last 7 days</option>
-                            <option value="30">Last 30 days</option>
-                            <option value="90">Last 90 days</option>
-                            <option value="all">All time</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-success" onclick="generateReport()">📊 Generate Report</button>
-                </div>
-
-                <div id="report-output" class="report-output"></div>
-            </section>
-
-            <!-- Settings Section -->
-            <section id="section-settings" class="admin-section" style="display:none;">
-                <h2>⚙️ Admin Settings</h2>
-
-                <div class="admin-settings">
-                    <div class="setting-item">
-                        <div class="setting-info">
-                            <label>Master Database Location</label>
-                        </div>
-                        <div class="setting-value">
-                            <code>admin/master.db</code>
-                        </div>
-                    </div>
-
-                    <div class="setting-item">
-                        <div class="setting-info">
-                            <label>Total Imported Records</label>
-                        </div>
-                        <div class="setting-value">
-                            <span id="imported-records">--</span>
-                        </div>
-                    </div>
-
-                    <div class="setting-item">
-                        <div class="setting-info">
-                            <label>Last Import Date</label>
-                        </div>
-                        <div class="setting-value">
-                            <span id="last-import">--</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <footer class="footer">
-            <p>AppPilot Admin v1.0.0 | <a href="/web/admin_dashboard.html">Refresh</a></p>
-        </footer>
+  <header class="header admin-header">
+    <div class="header-inner">
+      <a href="/web/admin_dashboard.html" class="logo">
+        <span class="logo-icon">✦</span>
+        AppPilot Admin
+      </a>
+      <nav class="nav">
+        <a href="#" onclick="showSection('dashboard');return false">Dashboard</a>
+        <a href="#" onclick="showSection('import');return false">Import</a>
+        <a href="#" onclick="showSection('reports');return false">Reports</a>
+        <a href="#" onclick="showSection('settings');return false">Settings</a>
+      </nav>
+      <div class="header-actions"></div>
     </div>
+  </header>
 
-    <script src="/static/js/app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            loadAdminDashboard();
-            setupImportHandlers();
-        });
+  <div class="container">
+    <main class="main-content">
+      <!-- Dashboard Section -->
+      <section id="section-dashboard" class="admin-section">
+        <h2>Usage Dashboard</h2>
 
-        function showSection(sectionName) {
-            document.querySelectorAll('.admin-section').forEach(s => s.style.display = 'none');
-            document.getElementById(`section-${sectionName}`).style.display = 'block';
-        }
+        <div class="admin-summary">
+          <div class="summary-card"><div class="summary-icon">✦</div><div class="summary-content"><div class="summary-value" id="total-users">--</div><div class="summary-label">Total Users</div></div></div>
+          <div class="summary-card"><div class="summary-icon">▶</div><div class="summary-content"><div class="summary-value" id="total-app-sessions">--</div><div class="summary-label">App Sessions</div></div></div>
+          <div class="summary-card"><div class="summary-icon">⏱</div><div class="summary-content"><div class="summary-value" id="total-runtime">--</div><div class="summary-label">Total Runtime</div></div></div>
+          <div class="summary-card error"><div class="summary-icon">!</div><div class="summary-content"><div class="summary-value" id="total-crashes">--</div><div class="summary-label">Crashes</div></div></div>
+        </div>
 
-        function loadAdminDashboard() {
-            // Fetch real data from admin API
-            fetch('/api/admin/summary')
-                .then(r => r.json())
-                .then(data => {
-                    updateDashboard(data);
-                })
-                .catch(err => {
-                    console.error('Failed to load admin dashboard:', err);
-                    showNotification('error', 'Failed to load dashboard data');
-                });
-        }
+        <div class="admin-charts">
+          <div class="chart-container"><h3>App Usage by Session Count</h3><canvas id="app-usage-chart"></canvas></div>
+          <div class="chart-container"><h3>Users Activity</h3><canvas id="users-chart"></canvas></div>
+        </div>
 
-        function updateDashboard(data) {
-            document.getElementById('total-users').textContent = data.total_users || 0;
-            document.getElementById('total-app-sessions').textContent = data.total_sessions || 0;
-            document.getElementById('total-runtime').textContent = formatDuration((data.total_runtime_hours || 0) * 3600);
-            document.getElementById('total-crashes').textContent = data.total_crashes || 0;
+        <div class="admin-table-section">
+          <h3>Top Applications</h3>
+          <div style="overflow-x:auto">
+            <table class="admin-table"><thead><tr><th>App</th><th>Sessions</th><th>Runtime</th><th>Users</th><th>Crashes</th></tr></thead>
+              <tbody id="top-apps-tbody"><tr><td colspan="5" class="loading-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
 
-            // Render top apps table
-            const apps = data.apps || [];
-            const tbody = document.getElementById('top-apps-tbody');
-            if (apps.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-muted">No app data available</td></tr>';
-            } else {
-                tbody.innerHTML = apps.slice(0, 10).map(app => `
-                    <tr>
-                        <td><span class="app-tag">${escapeHtml(app.name || app.app_id)}</span></td>
-                        <td>${app.sessions || 0}</td>
-                        <td>${formatDuration((app.runtime_hours || 0) * 3600)}</td>
-                        <td>${app.unique_machines || '-'}</td>
-                        <td>${(app.crashes || 0) > 0 ? `<span class="status-badge error">${app.crashes}</span>` : '0'}</td>
-                    </tr>
-                `).join('');
-            }
+        <div class="admin-table-section">
+          <h3>Users with Reports</h3>
+          <div id="missing-reports"><p class="text-muted">Loading...</p></div>
+        </div>
+      </section>
 
-            // Render missing reports - fetch from API
-            fetchMissingReports();
+      <!-- Import Section -->
+      <section id="section-import" class="admin-section" style="display:none">
+        <h2>Import Weekly Reports</h2>
+        <div class="export-info"><p>Import ZIP files from user machines into the master database.</p></div>
 
-            // Render charts
-            renderAdminCharts(data);
-        }
+        <div class="import-dropzone" id="import-dropzone">
+          <div class="dropzone-content">
+            <div class="dropzone-icon">📦</div>
+            <p>Drag & drop ZIP files here</p>
+            <p style="font-size:0.85rem;color:var(--text-tertiary)">or</p>
+            <input type="file" id="import-file-input" accept=".zip" style="display:none">
+            <button class="btn btn-primary" onclick="document.getElementById('import-file-input').click()">Browse Files</button>
+          </div>
+        </div>
 
-        function fetchMissingReports() {
-            fetch('/api/admin/users')
-                .then(r => r.json())
-                .then(users => {
-                    const missingDiv = document.getElementById('missing-reports');
-                    // For now, show all users who have submitted
-                    if (!users || users.length === 0) {
-                        missingDiv.innerHTML = '<p class="text-muted">No user data available</p>';
-                    } else {
-                        missingDiv.innerHTML = `
-                            <table class="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>User</th>
-                                        <th>Machine</th>
-                                        <th>Submissions</th>
-                                        <th>Last Seen</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${users.slice(0, 20).map(u => `
-                                        <tr>
-                                            <td>${escapeHtml(u.user_alias || 'Unknown')}</td>
-                                            <td>${escapeHtml(u.machine_id || 'Unknown')}</td>
-                                            <td>${u.submission_count || 0}</td>
-                                            <td>${u.last_seen ? formatDateTime(u.last_seen) : 'Never'}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        `;
-                    }
-                })
-                .catch(err => {
-                    console.error('Failed to fetch users:', err);
-                    document.getElementById('missing-reports').innerHTML = '<p class="text-muted">Failed to load user data</p>';
-                });
-        }
+        <div id="import-progress" class="import-progress"></div>
 
-        function renderAdminCharts(data) {
-            const apps = data.apps || [];
-            if (apps.length === 0) return;
+        <div class="import-history">
+          <h3 style="font-family:var(--font-display);font-size:0.9rem;font-weight:600;margin-bottom:12px">Import History</h3>
+          <div id="import-history-list"><p class="text-muted">No imports yet</p></div>
+        </div>
+      </section>
 
-            const ctx1 = document.getElementById('app-usage-chart').getContext('2d');
-            const ctx2 = document.getElementById('users-chart').getContext('2d');
+      <!-- Reports Section -->
+      <section id="section-reports" class="admin-section" style="display:none">
+        <h2>Generate Reports</h2>
+        <div class="report-form">
+          <div class="form-group"><label>Type:</label><select id="report-type"><option value="summary">Summary</option><option value="detailed">Detailed</option><option value="crashes">Crash Report</option><option value="adoption">Adoption</option></select></div>
+          <div class="form-group"><label>Format:</label><select id="report-format"><option value="csv">CSV</option><option value="excel">Excel</option></select></div>
+          <div class="form-group"><label>Range:</label><select id="report-range"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option><option value="all">All time</option></select></div>
+          <button class="btn btn-success" onclick="generateReport()">Generate</button>
+        </div>
+        <div id="report-output" class="report-output"></div>
+      </section>
 
-            // Destroy existing charts if they exist
-            if (window.appUsageChart) window.appUsageChart.destroy();
-            if (window.usersChart) window.usersChart.destroy();
+      <!-- Settings Section -->
+      <section id="section-settings" class="admin-section" style="display:none">
+        <h2>Admin Settings</h2>
+        <div class="admin-settings">
+          <div class="setting-item"><div class="setting-info"><label>Master Database</label></div><div class="setting-value"><code>admin/master.db</code></div></div>
+          <div class="setting-item"><div class="setting-info"><label>Total Imported Records</label></div><div class="setting-value"><span id="imported-records">--</span></div></div>
+          <div class="setting-item"><div class="setting-info"><label>Last Import</label></div><div class="setting-value"><span id="last-import">--</span></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
 
-            window.appUsageChart = new Chart(ctx1, {
-                type: 'bar',
-                data: {
-                    labels: apps.slice(0, 10).map(a => a.name || a.app_id),
-                    datasets: [{
-                        label: 'Sessions',
-                        data: apps.slice(0, 10).map(a => a.sessions || 0),
-                        backgroundColor: 'rgba(52, 152, 219, 0.7)'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false } }
-                }
-            });
+  <footer class="footer">
+    <p>AppPilot Admin v1.0.0</p>
+  </footer>
 
-            window.usersChart = new Chart(ctx2, {
-                type: 'pie',
-                data: {
-                    labels: apps.slice(0, 5).map(a => a.name || a.app_id),
-                    datasets: [{
-                        data: apps.slice(0, 5).map(a => a.unique_machines || 1),
-                        backgroundColor: ['#2ecc71', '#3498db', '#9b59b6', '#e74c3c', '#f1c40f']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { position: 'right' } }
-                }
-            });
-        }
+  <script src="/static/js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() { loadAdminDashboard(); setupImportHandlers(); });
 
-        function setupImportHandlers() {
-            const dropzone = document.getElementById('import-dropzone');
-            const fileInput = document.getElementById('import-file-input');
+    function showSection(name) {
+      document.querySelectorAll('.admin-section').forEach(s => s.style.display = 'none');
+      document.getElementById('section-' + name).style.display = 'block';
+      document.querySelectorAll('.admin-header .nav a').forEach(a => a.classList.remove('active'));
+      const active = Array.from(document.querySelectorAll('.admin-header .nav a')).find(a => a.textContent.trim().toLowerCase() === name);
+      if (active) active.classList.add('active');
+    }
 
-            dropzone.addEventListener('dragover', e => {
-                e.preventDefault();
-                dropzone.classList.add('dragover');
-            });
+    function loadAdminDashboard() {
+      fetch('/api/admin/summary').then(r=>r.json()).then(updateDashboard).catch(() => showNotification('error','Failed to load'));
+    }
 
-            dropzone.addEventListener('dragleave', () => {
-                dropzone.classList.remove('dragover');
-            });
+    function updateDashboard(data) {
+      document.getElementById('total-users').textContent = data.total_users || 0;
+      document.getElementById('total-app-sessions').textContent = data.total_sessions || 0;
+      document.getElementById('total-runtime').textContent = formatDuration((data.total_runtime_hours||0) * 3600);
+      document.getElementById('total-crashes').textContent = data.total_crashes || 0;
 
-            dropzone.addEventListener('drop', e => {
-                e.preventDefault();
-                dropzone.classList.remove('dragover');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    handleImportFile(files[0]);
-                }
-            });
+      const apps = data.apps || [];
+      const tbody = document.getElementById('top-apps-tbody');
+      if (apps.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:20px">No data</td></tr>'; }
+      else {
+        tbody.innerHTML = apps.slice(0,10).map(a => `
+          <tr><td><span class="app-tag">${escapeHtml(a.name||a.app_id)}</span></td>
+          <td>${a.sessions||0}</td>
+          <td>${formatDuration((a.runtime_hours||0)*3600)}</td>
+          <td>${a.unique_machines||'-'}</td>
+          <td>${(a.crashes||0) > 0 ? `<span class="status-badge error"><span class="dot"></span>${a.crashes}</span>` : '0'}</td></tr>
+        `).join('');
+      }
+      renderAdminCharts(data);
+      fetchMissingReports();
+    }
 
-            fileInput.addEventListener('change', e => {
-                if (e.target.files.length > 0) {
-                    handleImportFile(e.target.files[0]);
-                }
-            });
-        }
+    function fetchMissingReports() {
+      fetch('/api/admin/users').then(r=>r.json()).then(users => {
+        const md = document.getElementById('missing-reports');
+        if (!users || users.length === 0) { md.innerHTML = '<p class="text-muted">No user data</p>'; return; }
+        md.innerHTML = `<table class="admin-table"><thead><tr><th>User</th><th>Machine</th><th>Submissions</th><th>Last Seen</th></tr></thead><tbody>
+          ${users.slice(0,20).map(u => `<tr><td>${escapeHtml(u.user_alias||'Unknown')}</td><td class="mono" style="font-size:0.8rem">${escapeHtml(u.machine_id||'')}</td><td>${u.submission_count||0}</td><td>${u.last_seen ? formatDateTime(u.last_seen) : 'Never'}</td></tr>`).join('')}
+        </tbody></table>`;
+      }).catch(() => document.getElementById('missing-reports').innerHTML = '<p class="text-muted">Failed to load</p>');
+    }
 
-        function handleImportFile(file) {
-            if (!file.name.endsWith('.zip')) {
-                showNotification('error', 'Please select a ZIP file');
-                return;
-            }
+    function renderAdminCharts(data) {
+      const apps = data.apps || [];
+      if (apps.length === 0) return;
+      if (window.appUsageChart) window.appUsageChart.destroy();
+      if (window.usersChart) window.usersChart.destroy();
 
-            showNotification('info', `Importing ${file.name}...`);
+      window.appUsageChart = new Chart(document.getElementById('app-usage-chart'), {
+        type: 'bar',
+        data: { labels: apps.slice(0,10).map(a => a.name||a.app_id), datasets: [{ label: 'Sessions', data: apps.slice(0,10).map(a => a.sessions||0), backgroundColor: 'rgba(0,59,106,0.6)', borderColor: '#003B6A', borderWidth: 1, borderRadius: 4 }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false } } } }
+      });
 
-            const formData = new FormData();
-            formData.append('file', file);
+      window.usersChart = new Chart(document.getElementById('users-chart'), {
+        type: 'pie',
+        data: { labels: apps.slice(0,5).map(a => a.name||a.app_id), datasets: [{ data: apps.slice(0,5).map(a => a.unique_machines||1), backgroundColor: ['#003B6A','#2d8f78','#c4902a','#E00420','#737A80'], borderWidth: 0 }] },
+        options: { responsive: true, plugins: { legend: { position: 'right', labels: { boxWidth: 10, padding: 12 } } } }
+      });
+    }
 
-            fetch('/api/admin/import', {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                showNotification('success', `Successfully imported ${file.name} (${data.records_imported} records)`);
-                updateImportHistory({
-                    filename: file.name,
-                    date: new Date().toISOString(),
-                    status: 'success',
-                    records: data.records_imported
-                });
-            })
-            .catch(err => {
-                showNotification('error', `Failed to import ${file.name}`);
-                console.error(err);
-            });
-        }
+    function setupImportHandlers() {
+      const dz = document.getElementById('import-dropzone'), fi = document.getElementById('import-file-input');
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+      dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handleImportFile(e.dataTransfer.files[0]); });
+      fi.addEventListener('change', e => { if (e.target.files.length > 0) handleImportFile(e.target.files[0]); });
+    }
 
-        function updateImportHistory(importInfo) {
-            const historyList = document.getElementById('import-history-list');
-            const existing = historyList.querySelector('.import-item');
+    function handleImportFile(file) {
+      if (!file.name.endsWith('.zip')) { showNotification('error','ZIP files only'); return; }
+      showNotification('info',`Importing ${file.name}...`);
+      const fd = new FormData(); fd.append('file', file);
+      fetch('/api/admin/import', { method: 'POST', body: fd }).then(r=>r.json()).then(data => {
+        showNotification('success',`Imported ${file.name} (${data.records_imported} records)`);
+        const hl = document.getElementById('import-history-list');
+        const item = document.createElement('div'); item.className = 'import-item';
+        item.innerHTML = `<span class="import-icon" style="font-size:1.2rem">📦</span><span style="flex:1">${escapeHtml(file.name)}</span><span style="font-size:0.82rem;color:var(--text-tertiary)">${data.records_imported} records</span><span class="status-badge success"><span class="dot"></span>OK</span>`;
+        hl.innerHTML = ''; hl.appendChild(item);
+      }).catch(() => showNotification('error','Import failed'));
+    }
 
-            const item = document.createElement('div');
-            item.className = 'import-item';
-            item.innerHTML = `
-                <span class="import-icon">📦</span>
-                <span class="import-name">${escapeHtml(importInfo.filename)}</span>
-                <span class="import-date">${formatDateTime(importInfo.date)}</span>
-                <span class="import-records">${importInfo.records || '--'} records</span>
-                <span class="status-badge ${importInfo.status === 'success' ? 'success' : 'error'}">${importInfo.status}</span>
-            `;
+    function generateReport() {
+      const type = document.getElementById('report-type').value, fmt = document.getElementById('report-format').value, range = document.getElementById('report-range').value;
+      showNotification('info','Generating report...');
+      fetch('/api/admin/summary').then(r=>r.json()).then(data => {
+        document.getElementById('report-output').innerHTML = `
+          <div class="report-success">
+            <strong>✓ Report Generated</strong>
+            <p style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">
+              ${type} · ${fmt.toUpperCase()} · ${range === 'all' ? 'All time' : 'Last ' + range + ' days'}<br>
+              Sessions: ${data.total_sessions||0} · Runtime: ${((data.total_runtime_hours||0)).toFixed(1)}h · Crashes: ${data.total_crashes||0} · Apps: ${(data.apps||[]).length}
+            </p>
+            <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="downloadReport('${fmt}')">⬇ Download</button>
+          </div>`;
+      }).catch(() => showNotification('error','Failed'));
+    }
 
-            if (existing) {
-                historyList.insertBefore(item, historyList.firstChild);
-            } else {
-                historyList.innerHTML = '';
-                historyList.appendChild(item);
-            }
-        }
-
-        function generateReport() {
-            const reportType = document.getElementById('report-type').value;
-            const reportFormat = document.getElementById('report-format').value;
-            const reportRange = document.getElementById('report-range').value;
-
-            showNotification('info', `Generating ${reportType} report in ${reportFormat} format...`);
-
-            // Fetch real data from admin API
-            fetch('/api/admin/summary')
-                .then(r => r.json())
-                .then(data => {
-                    const output = document.getElementById('report-output');
-                    const runtimeHours = data.total_runtime_hours || 0;
-                    const totalSessions = data.total_sessions || 0;
-                    const totalCrashes = data.total_crashes || 0;
-                    const apps = data.apps || [];
-
-                    output.innerHTML = `
-                        <div class="report-success">
-                            <h4>✓ Report Generated</h4>
-                            <p><strong>Report Type:</strong> ${reportType}</p>
-                            <p><strong>Format:</strong> ${reportFormat.toUpperCase()}</p>
-                            <p><strong>Date Range:</strong> ${reportRange === 'all' ? 'All time' : 'Last ' + reportRange + ' days'}</p>
-                            <hr style="border-color: var(--border-color);">
-                            <p><strong>Summary:</strong></p>
-                            <ul>
-                                <li>Total Sessions: ${totalSessions}</li>
-                                <li>Total Runtime: ${runtimeHours.toFixed(2)} hours</li>
-                                <li>Total Crashes: ${totalCrashes}</li>
-                                <li>Unique Apps: ${apps.length}</li>
-                            </ul>
-                            <button class="btn btn-primary" onclick="downloadReport('${reportFormat}')">⬇ Download Report</button>
-                        </div>
-                    `;
-                })
-                .catch(err => {
-                    showNotification('error', 'Failed to generate report');
-                    console.error(err);
-                });
-        }
-
-        function downloadReport(format) {
-            showNotification('info', 'Preparing download...');
-
-            fetch(`/api/admin/export?format=${format}`)
-                .then(r => r.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `apppilot_report_${new Date().toISOString().split('T')[0]}.${format}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                    showNotification('success', 'Report downloaded');
-                })
-                .catch(err => {
-                    showNotification('error', 'Failed to download report');
-                    console.error(err);
-                });
-        }
-
-        function formatDuration(seconds) {
-            if (!seconds) return '0s';
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            if (h > 0) return `${h}h ${m}m`;
-            if (m > 0) return `${m}m`;
-            return `${seconds}s`;
-        }
-
-        function formatDateTime(ts) {
-            if (!ts) return '-';
-            return new Date(ts).toLocaleString();
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function showNotification(type, message) {
-            const existing = document.querySelector('.notification');
-            if (existing) existing.remove();
-
-            const notification = document.createElement('div');
-            notification.className = `notification notification-${type}`;
-            notification.innerHTML = `<span>${escapeHtml(message)}</span>`;
-            document.body.appendChild(notification);
-
-            setTimeout(() => notification.classList.add('show'), 10);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-    </script>
-
-    <style>
-        .admin-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .admin-header .logo-icon { font-size: 1.5rem; }
-        .admin-header h1 { color: white; }
-        .admin-header .btn-link { color: rgba(255,255,255,0.8); }
-        .admin-header .btn-link:hover { color: white; }
-
-        .admin-summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .admin-summary .summary-card {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 1.25rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .admin-summary .summary-card.error { border-left: 3px solid var(--error-color); }
-
-        .admin-charts {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .admin-table-section {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .admin-table th, .admin-table td {
-            text-align: left;
-            padding: 0.75rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .admin-table th {
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-
-        .import-dropzone {
-            border: 2px dashed var(--border-color);
-            border-radius: 12px;
-            padding: 3rem;
-            text-align: center;
-            margin-bottom: 2rem;
-            transition: all 0.3s ease;
-        }
-
-        .import-dropzone.dragover {
-            border-color: var(--primary-color);
-            background: rgba(52, 152, 219, 0.1);
-        }
-
-        .dropzone-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .report-form {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .report-form .form-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .report-form select {
-            padding: 0.5rem 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background: var(--bg-secondary);
-            color: var(--text-color);
-        }
-
-        .report-output {
-            margin-top: 1rem;
-        }
-
-        .report-success {
-            background: rgba(46, 204, 113, 0.1);
-            border: 1px solid var(--success-color);
-            border-radius: 8px;
-            padding: 1.5rem;
-        }
-
-        .import-progress {
-            margin-bottom: 2rem;
-        }
-
-        .import-history {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 1.5rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .import-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.75rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .import-item:last-child {
-            border-bottom: none;
-        }
-
-        .admin-settings {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 1.5rem;
-            border: 1px solid var(--border-color);
-        }
-    </style>
+    function downloadReport(format) {
+      showNotification('info','Preparing download...');
+      fetch(`/api/admin/export?format=${format}`).then(r=>r.blob()).then(blob => {
+        const url = window.URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = `apppilot_${new Date().toISOString().split('T')[0]}.${format}`;
+        document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); a.remove();
+        showNotification('success','Downloaded');
+      }).catch(() => showNotification('error','Failed'));
+    }
+  </script>
 </body>
 </html>

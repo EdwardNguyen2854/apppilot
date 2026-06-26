@@ -29,7 +29,7 @@ class ProcessInfo:
         self.started_at = datetime.now()
         self.psutil_process: Optional[psutil.Process] = None
         try:
-            self.psutil_process = psutil.Process(pid)
+            self.psutil_process = psutil.Process(self.pid)
         except psutil.NoSuchProcess:
             pass
 

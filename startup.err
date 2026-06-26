@@ -1,0 +1,16 @@
+2026-06-26 14:54:26,753 - __main__ - WARNING - Port 9700 is already in use, attempting to find available port...
+2026-06-26 14:54:28,769 - __main__ - INFO - Using port 9701 instead
+2026-06-26 14:54:28,770 - backend.core.database - INFO - Database initialized with all tables
+2026-06-26 14:54:28,770 - backend.core.database - INFO - Master database tables initialized
+2026-06-26 14:54:28,770 - __main__ - INFO - Database initialized
+2026-06-26 14:54:28,775 - backend.core.process_manager - INFO - ProcessManager initialized
+2026-06-26 14:54:28,775 - backend.core.monitor - INFO - Monitor initialized
+2026-06-26 14:54:28,792 - __main__ - INFO - Starting AppPilot server on 127.0.0.1:9701
+2026-06-26 14:54:28,792 - __main__ - INFO - Main dashboard: http://127.0.0.1:9701
+2026-06-26 14:54:28,792 - __main__ - INFO - Admin dashboard: http://127.0.0.1:9702
+INFO:     Started server process [34576]
+INFO:     Waiting for application startup.
+2026-06-26 14:54:28,829 - backend.app - INFO - AppPilot starting up...
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:9701 (Press CTRL+C to quit)
+2026-06-26 14:54:30,357 - __main__ - INFO - Opened browser to http://127.0.0.1:9701

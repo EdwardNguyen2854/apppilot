@@ -247,6 +247,13 @@ def create_admin_app():
     admin_dir = Path(__file__).parent / "admin"
     admin_dir.mkdir(exist_ok=True)
 
+    static_dir = web_dir / "static"
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="admin_static")
+
+    if web_dir.exists():
+        app.mount("/web", StaticFiles(directory=str(web_dir), html=True), name="admin_web_pages")
+
     admin_db = AdminDatabase(db_path=str(admin_dir / "master.db"))
     admin_db.initialize()
 
