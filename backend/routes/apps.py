@@ -10,9 +10,11 @@ Provides endpoints for:
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from pathlib import Path
 import logging
+import time
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/apps", tags=["apps"])
@@ -28,8 +30,90 @@ def _is_mcp_app(app_config):
     return app_config and app_config.get("type") == "mcp"
 
 
+def _find_mcp_tool(client, tool_name: str) -> Optional[Dict]:
+    return next((tool for tool in client.tools if tool.get("name") == tool_name), None)
+
+
+def _validate_required_top_level_args(tool: Dict, arguments: Dict[str, Any]) -> Optional[str]:
+    schema = tool.get("inputSchema") or {}
+    required = schema.get("required") or []
+    if not isinstance(required, list):
+        return None
+    missing = [
+        field for field in required
+        if field not in arguments or arguments.get(field) is None or arguments.get(field) == ""
+    ]
+    if missing:
+        return f"Missing required argument(s): {', '.join(missing)}"
+    return None
+
+
+def _summarize_mcp_result(result: Dict[str, Any]) -> str:
+    content = result.get("content") or []
+    if not content:
+        return "MCP tool returned an error result" if result.get("isError") else "No content"
+
+    first = content[0]
+    if isinstance(first, dict):
+        if first.get("type") == "text" and first.get("text"):
+            summary = str(first["text"])
+        else:
+            summary = str(first)
+    else:
+        summary = str(first)
+
+    if result.get("isError"):
+        summary = f"Error: {summary}"
+
+    return summary[:240]
+
+
 def init_apps_router(process_manager, database, config, monitor, mcp_manager=None):
     """Initialize router with dependencies."""
+    router = APIRouter(prefix="/api/apps", tags=["apps"])
+
+    def _recent_invocation_count(app_id: str) -> int:
+        if database is None:
+            return 0
+        return database.count_recent_mcp_invocations(app_id)
+
+    def _record_mcp_call_attempt(
+        app_id: str,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        started_at: datetime,
+        duration_ms: int,
+        success: bool,
+        result_summary: str = None,
+        error_message: str = None,
+    ) -> None:
+        if database is None:
+            return
+        database.record_mcp_invocation(
+            app_id=app_id,
+            tool_name=tool_name,
+            arguments=arguments,
+            started_at=started_at,
+            duration_ms=duration_ms,
+            success=success,
+            result_summary=result_summary,
+            error_message=error_message,
+        )
+        app_config = config.get_app_by_id(app_id) if config else None
+        database.record_usage_event(
+            app_id=app_id,
+            event_name="mcp_tool_called",
+            details={
+                "tool_name": tool_name,
+                "duration_ms": duration_ms,
+                "success": success,
+                "error_message": error_message,
+            },
+            success=success,
+            app_version=app_config.get("version") if app_config else None,
+            machine_id=config.get_machine_id() if config else None,
+            user_alias=config.get_user_alias() if config else None,
+        )
 
     @router.get("/config")
     async def get_config():
@@ -142,9 +226,11 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
             if mcp_status:
                 result['mcp_status'] = mcp_status['status']
                 result['tool_count'] = mcp_status['tool_count']
+                result['recent_invocation_count'] = _recent_invocation_count(app_id)
             else:
                 result['mcp_status'] = 'disconnected'
                 result['tool_count'] = 0
+                result['recent_invocation_count'] = _recent_invocation_count(app_id)
 
         return result
 
@@ -377,6 +463,7 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
             "prompt_count": status["prompt_count"] if status else 0,
             "initialized_at": status["initialized_at"] if status else None,
             "error_message": status["error_message"] if status else None,
+            "recent_invocation_count": _recent_invocation_count(app_id),
         }
 
     @router.get("/{app_id}/mcp/tools")
@@ -432,5 +519,106 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
             raise HTTPException(status_code=400, detail="MCP server is not running")
 
         return {"prompts": client.prompts, "count": len(client.prompts)}
+
+    @router.post("/{app_id}/mcp/call")
+    async def call_mcp_tool(app_id: str, payload: Dict[str, Any]):
+        """Invoke a discovered MCP tool."""
+        app_config = config.get_app_by_id(app_id)
+        if not app_config:
+            raise HTTPException(status_code=404, detail=f"App {app_id} not found")
+        if not _is_mcp_app(app_config):
+            raise HTTPException(status_code=400, detail=f"App {app_id} is not an MCP app")
+
+        started_at = datetime.now()
+        started_perf = time.perf_counter()
+        tool_name = payload.get("tool")
+        arguments = payload.get("arguments", {})
+        if not isinstance(tool_name, str) or not tool_name:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(
+                app_id,
+                "__missing__",
+                arguments if isinstance(arguments, dict) else {},
+                started_at,
+                duration_ms,
+                False,
+                error_message="Field 'tool' is required",
+            )
+            raise HTTPException(status_code=422, detail="Field 'tool' is required")
+        if not isinstance(arguments, dict):
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(
+                app_id,
+                tool_name,
+                {},
+                started_at,
+                duration_ms,
+                False,
+                error_message="Field 'arguments' must be an object",
+            )
+            raise HTTPException(status_code=422, detail="Field 'arguments' must be an object")
+
+        if mcp_manager is None:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(app_id, tool_name, arguments, started_at, duration_ms, False, error_message="MCP manager not available")
+            raise HTTPException(status_code=500, detail="MCP manager not available")
+
+        client = mcp_manager.get_client(app_id)
+        if client is None or client.status != "initialized":
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(app_id, tool_name, arguments, started_at, duration_ms, False, error_message="MCP server is not running")
+            raise HTTPException(status_code=400, detail="MCP server is not running")
+
+        tool = _find_mcp_tool(client, tool_name)
+        if tool is None:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(app_id, tool_name, arguments, started_at, duration_ms, False, error_message=f"Unknown MCP tool: {tool_name}")
+            raise HTTPException(status_code=404, detail=f"Unknown MCP tool: {tool_name}")
+
+        validation_error = _validate_required_top_level_args(tool, arguments)
+        if validation_error:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            _record_mcp_call_attempt(app_id, tool_name, arguments, started_at, duration_ms, False, error_message=validation_error)
+            raise HTTPException(status_code=422, detail=validation_error)
+
+        try:
+            result = await client.call_tool(tool_name, arguments)
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            content = result.get("content", [])
+            is_error = bool(result.get("isError", False))
+            summary = _summarize_mcp_result({"content": content, "isError": is_error})
+            _record_mcp_call_attempt(
+                app_id,
+                tool_name,
+                arguments,
+                started_at,
+                duration_ms,
+                not is_error,
+                result_summary=summary,
+                error_message=summary if is_error else None,
+            )
+            return {
+                "content": content,
+                "isError": is_error,
+                "duration_ms": duration_ms,
+            }
+        except Exception as e:
+            duration_ms = int((time.perf_counter() - started_perf) * 1000)
+            error_message = str(e)
+            _record_mcp_call_attempt(app_id, tool_name, arguments, started_at, duration_ms, False, error_message=error_message)
+            raise HTTPException(status_code=502, detail=error_message)
+
+    @router.get("/{app_id}/mcp/history")
+    async def get_mcp_history(app_id: str, limit: int = 50):
+        """Get recent MCP tool invocation history."""
+        app_config = config.get_app_by_id(app_id)
+        if not app_config:
+            raise HTTPException(status_code=404, detail=f"App {app_id} not found")
+        if not _is_mcp_app(app_config):
+            raise HTTPException(status_code=400, detail=f"App {app_id} is not an MCP app")
+
+        bounded_limit = max(1, min(limit, 200))
+        invocations = database.list_mcp_invocations(app_id, limit=bounded_limit) if database else []
+        return {"app_id": app_id, "history": invocations, "invocations": invocations, "total": len(invocations)}
 
     return router

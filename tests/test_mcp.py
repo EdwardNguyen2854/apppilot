@@ -8,6 +8,9 @@ from .conftest import (
     VALID_TOOLS_RESPONSE,
     VALID_RESOURCES_RESPONSE,
     VALID_PROMPTS_RESPONSE,
+    VALID_TOOL_CALL_RESPONSE,
+    ERROR_TOOL_CALL_RESPONSE,
+    IS_ERROR_TOOL_CALL_RESPONSE,
     ERROR_RESPONSE,
 )
 
@@ -141,6 +144,256 @@ class TestMCPError:
 
         status_resp = client.get("/api/apps/test-mcp-server/mcp/status")
         assert status_resp.json()["status"] == "disconnected"
+
+
+class TestMCPToolInvocation:
+    def test_valid_known_tool_call_returns_content_and_duration(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+            VALID_TOOL_CALL_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {"location": "Hanoi"},
+        })
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["content"] == [{"type": "text", "text": "Weather in Hanoi: 30 C"}]
+        assert data["isError"] is False
+        assert isinstance(data["duration_ms"], int)
+        assert data["duration_ms"] >= 0
+
+    def test_missing_required_argument_rejected_before_calling_server(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {},
+        })
+
+        assert resp.status_code == 422
+        assert "location" in resp.json()["detail"].lower()
+
+    def test_blank_required_argument_is_rejected(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {"location": ""},
+        })
+
+        assert resp.status_code == 422
+        assert "location" in resp.json()["detail"].lower()
+
+    def test_unknown_tool_returns_graceful_error(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "does_not_exist",
+            "arguments": {},
+        })
+
+        assert resp.status_code == 404
+        assert "unknown mcp tool" in resp.json()["detail"].lower()
+
+    def test_disconnected_server_returns_graceful_error(self, client):
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "echo",
+            "arguments": {"message": "hi"},
+        })
+
+        assert resp.status_code == 400
+        assert "not running" in resp.json()["detail"].lower()
+
+    def test_history_returns_invocations_newest_first(self, client, mock_asyncio_subprocess):
+        second_call_response = {
+            "jsonrpc": "2.0",
+            "id": 6,
+            "result": {
+                "content": [{"type": "text", "text": "Echo: hi"}],
+                "isError": False,
+            },
+        }
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+            VALID_TOOL_CALL_RESPONSE,
+            second_call_response,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+        client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {"location": "Hanoi"},
+        })
+        client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "echo",
+            "arguments": {"message": "hi"},
+        })
+
+        resp = client.get("/api/apps/test-mcp-server/mcp/history")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        invocations = data["invocations"]
+        assert data["history"] == invocations
+        assert [row["tool_name"] for row in invocations] == ["echo", "get_weather"]
+        assert invocations[0]["success"] is True
+        assert invocations[0]["arguments"] == {"message": "hi"}
+        assert invocations[0]["args"] == {"message": "hi"}
+        assert invocations[0]["timestamp"] == invocations[0]["started_at"]
+        assert invocations[0]["result_summary"] == "Echo: hi"
+
+    def test_malformed_call_records_failed_attempt(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "arguments": {"location": "Hanoi"},
+        })
+
+        assert resp.status_code == 422
+        history = client.get("/api/apps/test-mcp-server/mcp/history").json()["invocations"]
+        assert len(history) == 1
+        assert history[0]["tool_name"] == "__missing__"
+        assert history[0]["success"] is False
+        assert history[0]["error_message"] == "Field 'tool' is required"
+        events = client.get("/api/usage/events?app_id=test-mcp-server&limit=5").json()["events"]
+        event = next(e for e in events if e["event_name"] == "mcp_tool_called")
+        details = json.loads(event["details_json"])
+        assert details["tool_name"] == "__missing__"
+        assert details["success"] is False
+
+    def test_failed_call_creates_history_row(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+            ERROR_TOOL_CALL_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {"location": "Hanoi"},
+        })
+
+        assert resp.status_code == 502
+        history = client.get("/api/apps/test-mcp-server/mcp/history").json()["invocations"]
+        assert len(history) == 1
+        assert history[0]["success"] is False
+        assert "invalid tool arguments" in history[0]["error_message"].lower()
+
+    def test_is_error_result_preserves_error_content_in_history(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+            IS_ERROR_TOOL_CALL_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+        resp = client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {"location": "Hanoi"},
+        })
+
+        assert resp.status_code == 200
+        assert resp.json()["isError"] is True
+        history = client.get("/api/apps/test-mcp-server/mcp/history").json()["invocations"]
+        assert history[0]["success"] is False
+        assert history[0]["error_message"] == "Error: Tool-level failure"
+        assert history[0]["result_summary"] == "Error: Tool-level failure"
+
+    def test_status_includes_recent_invocation_count(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+            VALID_TOOL_CALL_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+        client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {"location": "Hanoi"},
+        })
+
+        mcp_status = client.get("/api/apps/test-mcp-server/mcp/status").json()
+        app_status = client.get("/api/apps/test-mcp-server/status").json()
+        assert mcp_status["recent_invocation_count"] == 1
+        assert app_status["recent_invocation_count"] == 1
+
+    def test_usage_event_recorded_for_tool_call(self, client, mock_asyncio_subprocess):
+        mock_proc = create_mock_process([
+            VALID_INITIALIZE_RESPONSE,
+            VALID_TOOLS_RESPONSE,
+            VALID_RESOURCES_RESPONSE,
+            VALID_PROMPTS_RESPONSE,
+            VALID_TOOL_CALL_RESPONSE,
+        ])
+        mock_asyncio_subprocess.return_value = mock_proc
+
+        client.post("/api/apps/test-mcp-server/start")
+        client.post("/api/apps/test-mcp-server/mcp/call", json={
+            "tool": "get_weather",
+            "arguments": {"location": "Hanoi"},
+        })
+
+        events = client.get("/api/usage/events?app_id=test-mcp-server&limit=5").json()["events"]
+        event = next(e for e in events if e["event_name"] == "mcp_tool_called")
+        details = json.loads(event["details_json"])
+        assert event["success"] == 1
+        assert details["tool_name"] == "get_weather"
+        assert details["success"] is True
+        assert isinstance(details["duration_ms"], int)
 
 
 class TestAppStatusIntegration:

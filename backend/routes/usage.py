@@ -21,6 +21,7 @@ router = APIRouter(prefix="/api/usage", tags=["usage"])
 
 def init_usage_router(database, config):
     """Initialize router with dependencies."""
+    router = APIRouter(prefix="/api/usage", tags=["usage"])
 
     @router.get("/summary")
     async def get_usage_summary(days: int = 7):

@@ -107,6 +107,34 @@ VALID_PROMPTS_RESPONSE = {
     },
 }
 
+VALID_TOOL_CALL_RESPONSE = {
+    "jsonrpc": "2.0",
+    "id": 5,
+    "result": {
+        "content": [
+            {"type": "text", "text": "Weather in Hanoi: 30 C"}
+        ],
+        "isError": False,
+    },
+}
+
+ERROR_TOOL_CALL_RESPONSE = {
+    "jsonrpc": "2.0",
+    "id": 5,
+    "error": {"code": -32602, "message": "Invalid tool arguments", "data": None},
+}
+
+IS_ERROR_TOOL_CALL_RESPONSE = {
+    "jsonrpc": "2.0",
+    "id": 5,
+    "result": {
+        "content": [
+            {"type": "text", "text": "Tool-level failure"}
+        ],
+        "isError": True,
+    },
+}
+
 ERROR_RESPONSE = {
     "jsonrpc": "2.0",
     "id": 1,

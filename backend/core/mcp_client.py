@@ -186,6 +186,12 @@ class MCPClient:
         self._prompts = result.get("prompts", [])
         return self._prompts
 
+    async def call_tool(self, name: str, arguments: Optional[Dict] = None) -> Dict:
+        return await self._send_request("tools/call", {
+            "name": name,
+            "arguments": arguments or {},
+        })
+
     async def disconnect(self) -> None:
         try:
             if self._status == "initialized":
