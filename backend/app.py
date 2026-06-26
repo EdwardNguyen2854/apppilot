@@ -108,6 +108,7 @@ def create_app(config=None, database=None):
     from backend.core.process_manager import ProcessManager
     from backend.core.monitor import Monitor
     from backend.core.mcp_client import MCPManager
+    from backend.core.cli_runner import CliRunner
     from backend.routes import apps_router, usage_router, events_router, admin_router, init_apps_router, init_usage_router, init_events_router, init_admin_router
 
     app = FastAPI(
@@ -125,10 +126,12 @@ def create_app(config=None, database=None):
     process_manager = ProcessManager()
     monitor = Monitor(process_manager, database)
     mcp_manager = MCPManager()
+    cli_runner = CliRunner()
 
     app.state.process_manager = process_manager
     app.state.monitor = monitor
     app.state.mcp_manager = mcp_manager
+    app.state.cli_runner = cli_runner
 
     app.add_middleware(
         CORSMiddleware,
@@ -149,7 +152,7 @@ def create_app(config=None, database=None):
     if web_dir.exists():
         app.mount("/web", StaticFiles(directory=str(web_dir), html=True), name="web_pages")
 
-    apps_router_configured = init_apps_router(process_manager, database, config, monitor, mcp_manager)
+    apps_router_configured = init_apps_router(process_manager, database, config, monitor, mcp_manager, cli_runner)
     usage_router_configured = init_usage_router(database, config)
     events_router_configured = init_events_router(database, config)
     admin_router_configured = init_admin_router(database, config)

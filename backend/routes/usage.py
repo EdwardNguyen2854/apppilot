@@ -66,7 +66,7 @@ def init_usage_router(database, config):
 
         data = database.get_weekly_export_data(year, week)
 
-        if not data['sessions'] and not data['events']:
+        if not data['sessions'] and not data['events'] and not data.get('cli_runs'):
             return {
                 "success": False,
                 "message": f"No data found for {year}-W{week:02d}"
@@ -85,7 +85,8 @@ def init_usage_router(database, config):
                 'session_count': len(data['sessions']),
                 'event_count': len(data['events']),
                 'health_check_count': len(data['health_checks']),
-                'metrics_count': len(data['process_metrics'])
+                'metrics_count': len(data['process_metrics']),
+                'cli_run_count': len(data.get('cli_runs', [])),
             }
             zf.writestr('summary.json', json.dumps(summary_json, indent=2))
 
@@ -117,8 +118,17 @@ def init_usage_router(database, config):
                 writer.writerows(data['process_metrics'])
                 zf.writestr('process_metrics.csv', metrics_io.getvalue())
 
+            cli_runs = data.get('cli_runs', [])
+            if cli_runs:
+                runs_io = StringIO()
+                writer = csv.DictWriter(runs_io, fieldnames=cli_runs[0].keys())
+                writer.writeheader()
+                writer.writerows(cli_runs)
+                zf.writestr('cli_runs.csv', runs_io.getvalue())
+
         total_records = (len(data['sessions']) + len(data['events']) +
-                        len(data['health_checks']) + len(data['process_metrics']))
+                        len(data['health_checks']) + len(data['process_metrics']) +
+                        len(data.get('cli_runs', [])))
         database.record_export(
             week_id=data['week_id'],
             file_name=filename,

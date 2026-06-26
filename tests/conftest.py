@@ -34,6 +34,17 @@ SAMPLE_APPS = [
         "auto_start": False,
         "monitor": {"process": True, "port": True, "http": False, "cpu_ram": True},
     },
+    {
+        "id": "test-cli-tool",
+        "name": "Test CLI Tool",
+        "type": "cli",
+        "exe": "apps/cli/test-cli.exe",
+        "args": ["--default"],
+        "cwd": None,
+        "timeout": 30,
+        "log_file": "logs/test-cli.log",
+        "monitor": {"process": False, "port": False, "http": False, "cpu_ram": False},
+    },
 ]
 
 VALID_INITIALIZE_RESPONSE = {
@@ -206,6 +217,25 @@ def test_config():
     config.get_user_alias.return_value = "test-user"
     config.get.return_value = None
     return config
+
+
+class FakeCompletedProcess:
+    """Stand-in for subprocess.CompletedProcess for tests."""
+    def __init__(self, returncode=0, stdout="", stderr=""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+def make_fake_completed(returncode=0, stdout="", stderr=""):
+    return FakeCompletedProcess(returncode=returncode, stdout=stdout, stderr=stderr)
+
+
+@pytest.fixture
+def mock_subprocess_run():
+    """Patch subprocess.run at the cli_runner seam."""
+    with patch("backend.core.cli_runner.subprocess.run") as mock:
+        yield mock
 
 
 @pytest.fixture

@@ -147,6 +147,22 @@ class Database:
             """)
 
             cursor.execute("""
+                CREATE TABLE IF NOT EXISTS cli_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    app_id TEXT NOT NULL,
+                    args_json TEXT,
+                    exit_code INTEGER,
+                    stdout_size INTEGER,
+                    stderr_size INTEGER,
+                    duration_sec REAL,
+                    success INTEGER DEFAULT 0,
+                    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    error_message TEXT,
+                    FOREIGN KEY (app_id) REFERENCES apps(app_id)
+                )
+            """)
+
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS exports (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     week_id TEXT NOT NULL,
@@ -163,6 +179,8 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON usage_events(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcp_invocations_app_id ON mcp_invocations(app_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_mcp_invocations_started_at ON mcp_invocations(started_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cli_runs_app_id ON cli_runs(app_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_cli_runs_started_at ON cli_runs(started_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_app_id ON process_metrics(app_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_health_app_id ON health_checks(app_id)")
 
@@ -331,6 +349,78 @@ class Database:
             row = cursor.fetchone()
             return int(row["count"] if row else 0)
 
+    def record_cli_run(self, app_id: str, args: List[str] = None,
+                       exit_code: int = None, stdout_size: int = 0,
+                       stderr_size: int = 0, duration_sec: float = 0.0,
+                       success: bool = False,
+                       error_message: str = None) -> int:
+        """Record a CLI tool execution. Returns the new row id."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO cli_runs (
+                    app_id, args_json, exit_code, stdout_size, stderr_size,
+                    duration_sec, success, started_at, error_message
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                app_id,
+                json.dumps(args or []),
+                exit_code,
+                stdout_size,
+                stderr_size,
+                duration_sec,
+                1 if success else 0,
+                datetime.now(),
+                error_message,
+            ))
+            return cursor.lastrowid
+
+    def list_cli_runs(self, app_id: str, limit: int = 50) -> List[Dict]:
+        """Return recent CLI runs newest first."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM cli_runs
+                WHERE app_id = ?
+                ORDER BY started_at DESC, id DESC
+                LIMIT ?
+            """, (app_id, limit))
+            rows = []
+            for row in cursor.fetchall():
+                item = dict(row)
+                try:
+                    item["args"] = json.loads(item.get("args_json") or "[]")
+                except json.JSONDecodeError:
+                    item["args"] = []
+                item["success"] = bool(item.get("success"))
+                item["timestamp"] = item.get("started_at")
+                stdout_size = item.get("stdout_size") or 0
+                item["stdout_summary"] = f"{stdout_size} bytes"
+                rows.append(item)
+            return rows
+
+    def get_last_cli_run(self, app_id: str) -> Optional[Dict]:
+        """Return the most recent CLI run for an app, if any."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM cli_runs
+                WHERE app_id = ?
+                ORDER BY started_at DESC, id DESC
+                LIMIT 1
+            """, (app_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            item = dict(row)
+            try:
+                item["args"] = json.loads(item.get("args_json") or "[]")
+            except json.JSONDecodeError:
+                item["args"] = []
+            item["success"] = bool(item.get("success"))
+            return item
+
     def record_export(self, week_id: str, file_name: str, record_count: int,
                       status: str = 'completed') -> None:
         """Record an export operation."""
@@ -411,6 +501,12 @@ class Database:
             metrics = [dict(row) for row in cursor.fetchall()]
 
             cursor.execute("""
+                SELECT * FROM cli_runs
+                WHERE started_at BETWEEN ? AND ?
+            """, (week_start, week_end))
+            cli_runs = [dict(row) for row in cursor.fetchall()]
+
+            cursor.execute("""
                 SELECT DISTINCT app_id, app_version FROM app_sessions
                 WHERE started_at BETWEEN ? AND ?
             """, (week_start, week_end))
@@ -423,6 +519,7 @@ class Database:
                 'events': events,
                 'health_checks': health_checks,
                 'process_metrics': metrics,
+                'cli_runs': cli_runs,
                 'app_versions': app_versions
             }
 
@@ -460,6 +557,8 @@ class Database:
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM mcp_invocations WHERE started_at < ?", (cutoff_date,))
             deleted += cursor.rowcount
+            cursor.execute("DELETE FROM cli_runs WHERE started_at < ?", (cutoff_date,))
+            deleted += cursor.rowcount
             conn.commit()
             return deleted
 
@@ -476,6 +575,8 @@ class Database:
             cursor.execute("DELETE FROM usage_events WHERE timestamp < ?", (cutoff_date,))
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM mcp_invocations WHERE started_at < ?", (cutoff_date,))
+            deleted += cursor.rowcount
+            cursor.execute("DELETE FROM cli_runs WHERE started_at < ?", (cutoff_date,))
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM app_sessions WHERE started_at < ?", (cutoff_date,))
             deleted += cursor.rowcount
@@ -495,6 +596,8 @@ class Database:
             cursor.execute("DELETE FROM usage_events")
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM mcp_invocations")
+            deleted += cursor.rowcount
+            cursor.execute("DELETE FROM cli_runs")
             deleted += cursor.rowcount
             cursor.execute("DELETE FROM app_sessions")
             deleted += cursor.rowcount

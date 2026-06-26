@@ -41,6 +41,7 @@
             <option value="api">API</option>
             <option value="external">External</option>
             <option value="mcp">MCP</option>
+            <option value="cli">CLI</option>
             <option value="background">Background</option>
           </select>
           <select id="filter-status" class="filter-select" onchange="filterApps()">
@@ -144,7 +145,10 @@
           <td>${app.memory_mb ? app.memory_mb.toFixed(1) + ' MB' : '-'}</td>
           <td class="mono">${app.port || '-'}</td>
           <td class="actions-cell">
-            ${app.running ? `
+            ${app.type === 'cli' ? `
+              <button class="btn btn-sm btn-primary" onclick="openRunCliModal('${app.id}')">Run</button>
+              <button class="btn btn-sm btn-secondary" onclick="openRunHistoryModal('${app.id}')">History</button>
+            ` : app.running ? `
               <button class="btn btn-sm btn-danger" onclick="stopApp('${app.id}')">Stop</button>
               <button class="btn btn-sm btn-warning" onclick="restartApp('${app.id}')">Restart</button>
               ${app.url ? `<button class="btn btn-sm btn-primary" onclick="openUrl('${app.url}')">Open</button>` : ''}
@@ -198,6 +202,18 @@
 
     function viewAppSessions(appId) {
       fetch(`/api/apps/${appId}/sessions?limit=10`).then(r=>r.json()).then(data => showSessionsModal(appId, data.sessions)).catch(() => showNotification('error', 'Failed'));
+    }
+
+    function openRunCliModal(appId) {
+      const app = allApps.find(a => a.id === appId);
+      if (!app) { showNotification('error', 'App not found'); return; }
+      showRunCliModal(app);
+    }
+
+    function openRunHistoryModal(appId) {
+      const app = allApps.find(a => a.id === appId);
+      if (!app) { showNotification('error', 'App not found'); return; }
+      showRunHistoryModal(app);
     }
   </script>
 </body>

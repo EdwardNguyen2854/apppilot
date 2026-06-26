@@ -64,6 +64,183 @@ async function viewLogs(appId, lines) {
   }
 }
 
+// -- CLI Tools --
+async function runCliTool(appId, args, statusEl, buttonEl) {
+  const payload = Array.isArray(args) ? { args } : {};
+  try {
+    if (buttonEl) { buttonEl.disabled = true; buttonEl.dataset.label = buttonEl.textContent; buttonEl.textContent = 'Running...'; }
+    if (statusEl) statusEl.textContent = 'Running...';
+    const r = await fetch(`/api/apps/${appId}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (buttonEl) { buttonEl.disabled = false; buttonEl.textContent = buttonEl.dataset.label || 'Run'; }
+    return { ok: r.ok, status: r.status, data };
+  } catch (err) {
+    if (buttonEl) { buttonEl.disabled = false; buttonEl.textContent = buttonEl.dataset.label || 'Run'; }
+    if (statusEl) statusEl.textContent = '';
+    showNotification('error', `Failed to run ${appId}`);
+    return { ok: false, status: 0, data: { error: String(err) } };
+  }
+}
+
+function showRunCliModal(app) {
+  const existing = document.querySelector('.modal');
+  if (existing) existing.remove();
+  const defaultArgs = Array.isArray(app.args) ? app.args.join(' ') : '';
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Run: ${escapeHtml(app.name)}</h3>
+        <button class="modal-close" data-action="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label for="cli-args-input">Arguments <span class="text-muted">(space-separated; leave blank to use defaults)</span></label>
+          <textarea id="cli-args-input" class="cli-input" rows="3" placeholder="${escapeHtml(defaultArgs)}">${escapeHtml(defaultArgs)}</textarea>
+        </div>
+        <div class="cli-run-actions">
+          <button class="btn btn-primary" data-action="run">Run</button>
+          <span id="cli-run-status" class="cli-run-status text-muted"></span>
+        </div>
+        <div id="cli-run-output" class="cli-run-output" style="display:none">
+          <div class="cli-run-meta">
+            <span><strong>Exit code:</strong> <span id="cli-run-exit">-</span></span>
+            <span><strong>Duration:</strong> <span id="cli-run-duration">-</span></span>
+            <span id="cli-run-badge"></span>
+          </div>
+          <div class="cli-output-tabs">
+            <button class="cli-tab-btn active" data-tab="stdout">stdout</button>
+            <button class="cli-tab-btn" data-tab="stderr">stderr</button>
+          </div>
+          <pre id="cli-run-stdout" class="cli-output-pre"></pre>
+          <pre id="cli-run-stderr" class="cli-output-pre" style="display:none"></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-action="close">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const close = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
+  const escHandler = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
+
+  const argsInput = modal.querySelector('#cli-args-input');
+  const runBtn = modal.querySelector('[data-action="run"]');
+  const statusEl = modal.querySelector('#cli-run-status');
+  const outputEl = modal.querySelector('#cli-run-output');
+  const exitEl = modal.querySelector('#cli-run-exit');
+  const durationEl = modal.querySelector('#cli-run-duration');
+  const badgeEl = modal.querySelector('#cli-run-badge');
+  const stdoutEl = modal.querySelector('#cli-run-stdout');
+  const stderrEl = modal.querySelector('#cli-run-stderr');
+  const tabButtons = modal.querySelectorAll('.cli-tab-btn');
+
+  tabButtons.forEach(b => b.addEventListener('click', () => {
+    tabButtons.forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    const tab = b.dataset.tab;
+    stdoutEl.style.display = tab === 'stdout' ? 'block' : 'none';
+    stderrEl.style.display = tab === 'stderr' ? 'block' : 'none';
+  }));
+
+  const parseArgs = (raw) => raw.trim() === '' ? [] : raw.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g).map(a => a.replace(/^["']|["']$/g, ''));
+
+  runBtn.addEventListener('click', async () => {
+    const args = parseArgs(argsInput.value || '');
+    runBtn.disabled = true;
+    outputEl.style.display = 'none';
+    statusEl.textContent = 'Running...';
+    const result = await runCliTool(app.id, args);
+    runBtn.disabled = false;
+    if (!result.ok) {
+      statusEl.textContent = '';
+      const detail = result.data && (result.data.detail || result.data.error) || 'Run failed';
+      showNotification('error', detail);
+      return;
+    }
+    const data = result.data;
+    statusEl.textContent = '';
+    outputEl.style.display = 'block';
+    exitEl.textContent = data.exit_code;
+    durationEl.textContent = (data.duration_sec != null ? data.duration_sec.toFixed(2) : '-') + 's';
+    stdoutEl.textContent = data.stdout || '(empty)';
+    stderrEl.textContent = data.stderr || '(empty)';
+    badgeEl.innerHTML = data.success
+      ? '<span class="status-badge success"><span class="dot"></span>OK</span>'
+      : (data.timed_out
+          ? '<span class="status-badge warning"><span class="dot"></span>Timeout</span>'
+          : '<span class="status-badge error"><span class="dot"></span>Failed</span>');
+    tabButtons.forEach((b, i) => {
+      b.classList.toggle('active', i === 0);
+    });
+    stdoutEl.style.display = 'block';
+    stderrEl.style.display = 'none';
+  });
+}
+
+async function showRunHistoryModal(app) {
+  const existing = document.querySelector('.modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content modal-xl">
+      <div class="modal-header">
+        <h3>Run History: ${escapeHtml(app.name)}</h3>
+        <button class="modal-close" data-action="close">&times;</button>
+      </div>
+      <div class="modal-body" id="cli-history-body">
+        <div class="loading-spinner"><div class="spinner"></div><span>Loading...</span></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-action="close">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const close = () => modal.remove();
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.querySelectorAll('[data-action="close"]').forEach(b => b.addEventListener('click', close));
+  const escHandler = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
+
+  const body = modal.querySelector('#cli-history-body');
+  try {
+    const r = await fetch(`/api/apps/${app.id}/run-history?limit=50`);
+    const data = await r.json();
+    const runs = data.runs || [];
+    if (runs.length === 0) {
+      body.innerHTML = '<p class="text-muted">No runs recorded yet.</p>';
+      return;
+    }
+    body.innerHTML = `<table class="data-table">
+      <thead><tr>
+        <th>Time</th><th>Args</th><th>Exit</th><th>Duration</th><th>Status</th>
+      </tr></thead>
+      <tbody>${runs.map(row => `
+        <tr>
+          <td>${formatDateTime(row.started_at || row.timestamp)}</td>
+          <td class="mono">${escapeHtml(Array.isArray(row.args) ? row.args.join(' ') : '')}</td>
+          <td class="mono">${row.exit_code ?? '-'}</td>
+          <td class="mono">${row.duration_sec != null ? row.duration_sec.toFixed(2) + 's' : '-'}</td>
+          <td><span class="status-badge ${row.success ? 'success' : 'error'}"><span class="dot"></span>${row.success ? 'OK' : 'Failed'}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } catch (err) {
+    body.innerHTML = '<p class="error-cell">Failed to load run history.</p>';
+  }
+}
+
 // -- Refresh --
 function refreshAppGrid() {
   fetch('/api/apps')
@@ -422,7 +599,7 @@ function openUrl(url) { window.open(url, '_blank'); }
 function openMCPTools(appId) { window.location.href = `/web/mcp.html?server=${encodeURIComponent(appId)}`; }
 
 function getAppIcon(type) {
-  const icons = { desktop: '\uD83D\uDDA5\uFE0F', web: '\uD83C\uDF10', api: '\u2699\uFE0F', background: '\uD83D\uDD04', external: '\uD83D\uDD17', mcp: '\uD83D\uDD0C' };
+  const icons = { desktop: '\uD83D\uDDA5\uFE0F', web: '\uD83C\uDF10', api: '\u2699\uFE0F', background: '\uD83D\uDD04', external: '\uD83D\uDD17', mcp: '\uD83D\uDD0C', cli: '\uD83D\uDCBB' };
   return icons[type] || '\uD83D\uDCE6';
 }
 

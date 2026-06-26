@@ -30,6 +30,10 @@ def _is_mcp_app(app_config):
     return app_config and app_config.get("type") == "mcp"
 
 
+def _is_cli_app(app_config):
+    return app_config and app_config.get("type") == "cli"
+
+
 def _find_mcp_tool(client, tool_name: str) -> Optional[Dict]:
     return next((tool for tool in client.tools if tool.get("name") == tool_name), None)
 
@@ -68,9 +72,13 @@ def _summarize_mcp_result(result: Dict[str, Any]) -> str:
     return summary[:240]
 
 
-def init_apps_router(process_manager, database, config, monitor, mcp_manager=None):
+def init_apps_router(process_manager, database, config, monitor, mcp_manager=None, cli_runner=None):
     """Initialize router with dependencies."""
+    from backend.core.cli_runner import CliRunner
+
     router = APIRouter(prefix="/api/apps", tags=["apps"])
+    if cli_runner is None:
+        cli_runner = CliRunner()
 
     def _recent_invocation_count(app_id: str) -> int:
         if database is None:
@@ -181,6 +189,15 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
                     app_info['mcp_status'] = 'disconnected'
                     app_info['tool_count'] = 0
 
+            if _is_cli_app(app) and database is not None:
+                last_run = database.get_last_cli_run(app_id)
+                if last_run:
+                    app_info['last_run_at'] = last_run.get('started_at')
+                    app_info['last_exit_code'] = last_run.get('exit_code')
+                    app_info['last_success'] = bool(last_run.get('success'))
+                    app_info['last_args'] = last_run.get('args')
+                    app_info['last_duration_sec'] = last_run.get('duration_sec')
+
             result.append(app_info)
 
         return {"apps": result, "total": len(result)}
@@ -232,6 +249,23 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
                 result['tool_count'] = 0
                 result['recent_invocation_count'] = _recent_invocation_count(app_id)
 
+        if _is_cli_app(app_config):
+            last_run = database.get_last_cli_run(app_id) if database else None
+            if last_run:
+                result['last_run_at'] = last_run.get('started_at')
+                result['last_exit_code'] = last_run.get('exit_code')
+                result['last_success'] = bool(last_run.get('success'))
+                result['last_args'] = last_run.get('args')
+                result['last_duration_sec'] = last_run.get('duration_sec')
+                result['last_error_message'] = last_run.get('error_message')
+            else:
+                result['last_run_at'] = None
+                result['last_exit_code'] = None
+                result['last_success'] = None
+                result['last_args'] = None
+                result['last_duration_sec'] = None
+                result['last_error_message'] = None
+
         return result
 
     @router.post("/{app_id}/start")
@@ -240,6 +274,14 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
         app_config = config.get_app_by_id(app_id)
         if not app_config:
             raise HTTPException(status_code=404, detail=f"App {app_id} not found")
+
+        if _is_cli_app(app_config):
+            logger.info(f"Start on CLI app {app_id} is a no-op; use /run instead")
+            return {
+                "success": True,
+                "message": f"App {app_id} is a CLI tool (run-once); use POST /api/apps/{app_id}/run instead of Start",
+                "app_id": app_id,
+            }
 
         if process_manager.is_process_running(app_id):
             return {"success": False, "message": f"App {app_id} is already running"}
@@ -318,6 +360,14 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
         app_config = config.get_app_by_id(app_id)
         if not app_config:
             raise HTTPException(status_code=404, detail=f"App {app_id} not found")
+
+        if _is_cli_app(app_config):
+            logger.info(f"Stop on CLI app {app_id} is a no-op")
+            return {
+                "success": True,
+                "message": f"App {app_id} is a CLI tool (run-once); there is nothing to stop",
+                "app_id": app_id,
+            }
 
         if _is_mcp_app(app_config):
             return await _stop_mcp_app(app_id)
@@ -620,5 +670,102 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
         bounded_limit = max(1, min(limit, 200))
         invocations = database.list_mcp_invocations(app_id, limit=bounded_limit) if database else []
         return {"app_id": app_id, "history": invocations, "invocations": invocations, "total": len(invocations)}
+
+    @router.post("/{app_id}/run")
+    async def run_cli_tool(app_id: str, payload: Dict[str, Any] = None):
+        """Execute a CLI tool. Body: ``{"args": ["--flag", "value"]}`` (optional override)."""
+        app_config = config.get_app_by_id(app_id)
+        if not app_config:
+            raise HTTPException(status_code=404, detail=f"App {app_id} not found")
+        if not _is_cli_app(app_config):
+            raise HTTPException(status_code=400, detail=f"App {app_id} is not a CLI app")
+
+        payload = payload or {}
+        raw_args = payload.get("args", None)
+        override_provided = "args" in payload
+        if not override_provided:
+            final_args: List[str] = list(app_config.get("args") or [])
+        elif isinstance(raw_args, list) and all(isinstance(a, str) for a in raw_args):
+            final_args = list(raw_args)
+        else:
+            raise HTTPException(status_code=422, detail="Field 'args' must be a list of strings")
+
+        exe_path = app_config.get("exe", "")
+        timeout = float(app_config.get("timeout") or 60)
+        cwd = app_config.get("cwd") or None
+
+        logger.info(
+            "CLI run start: app=%s exe=%s args=%s timeout=%.1fs",
+            app_id, exe_path, final_args, timeout,
+        )
+
+        result = cli_runner.run(
+            exe_path=exe_path,
+            args=final_args,
+            timeout=timeout,
+            cwd=cwd,
+        )
+
+        if result["timed_out"]:
+            logger.warning("CLI run timed out: app=%s timeout=%.1fs", app_id, timeout)
+        elif not result["success"]:
+            logger.warning(
+                "CLI run failed: app=%s exit=%s err=%s",
+                app_id, result["exit_code"], result["error_message"],
+            )
+
+        run_id = None
+        if database is not None:
+            run_id = database.record_cli_run(
+                app_id=app_id,
+                args=final_args,
+                exit_code=result["exit_code"],
+                stdout_size=len(result["stdout"]),
+                stderr_size=len(result["stderr"]),
+                duration_sec=result["duration_sec"],
+                success=result["success"],
+                error_message=result["error_message"] if not result["success"] else None,
+            )
+            database.record_usage_event(
+                app_id=app_id,
+                event_name="cli_tool_run",
+                details={
+                    "args": final_args,
+                    "exit_code": result["exit_code"],
+                    "duration_sec": result["duration_sec"],
+                    "success": result["success"],
+                    "timed_out": result["timed_out"],
+                },
+                success=result["success"],
+                app_version=app_config.get("version"),
+                machine_id=config.get_machine_id(),
+                user_alias=config.get_user_alias(),
+            )
+
+        return {
+            "app_id": app_id,
+            "args": final_args,
+            "exit_code": result["exit_code"],
+            "stdout": result["stdout"],
+            "stderr": result["stderr"],
+            "duration_sec": result["duration_sec"],
+            "success": result["success"],
+            "timed_out": result["timed_out"],
+            "error_message": result["error_message"],
+            "run_id": run_id,
+        }
+
+    @router.get("/{app_id}/run-history")
+    async def get_cli_run_history(app_id: str, limit: int = 20):
+        """Get past CLI tool executions for an app."""
+        app_config = config.get_app_by_id(app_id)
+        if not app_config:
+            raise HTTPException(status_code=404, detail=f"App {app_id} not found")
+        if not _is_cli_app(app_config):
+            raise HTTPException(status_code=400, detail=f"App {app_id} is not a CLI app")
+
+        bounded_limit = max(1, min(limit, 200))
+        runs = database.list_cli_runs(app_id, limit=bounded_limit) if database else []
+        return {"app_id": app_id, "history": runs, "runs": runs, "total": len(runs)}
 
     return router
