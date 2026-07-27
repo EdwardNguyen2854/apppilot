@@ -132,16 +132,16 @@
 
   <script src="/static/js/app.js"></script>
   <script>
-    let allApps = [];
+    let appsPageApps = [];
     let discoveredApps = [];
 
     document.addEventListener('DOMContentLoaded', function() { loadAllApps(); loadSessions(); });
 
     function loadAllApps() {
       fetch('/api/apps').then(r=>r.json()).then(data => {
-        allApps = data.apps || [];
-        renderAppsTable(allApps);
-        updateSummaryCards(allApps);
+        appsPageApps = data.apps || [];
+        renderAppsTable(appsPageApps);
+        updateSummaryCards(appsPageApps);
       }).catch(err => {
         document.getElementById('apps-table-body').innerHTML = '<tr><td colspan="8" class="error-cell">Failed to load applications</td></tr>';
       });
@@ -196,7 +196,7 @@
       const search = document.getElementById('search-apps').value.toLowerCase();
       const typeFilter = document.getElementById('filter-type').value;
       const statusFilter = document.getElementById('filter-status').value;
-      const filtered = allApps.filter(app => {
+      const filtered = appsPageApps.filter(app => {
         const ms = app.name.toLowerCase().includes(search) || app.id.toLowerCase().includes(search) || (app.description||'').toLowerCase().includes(search);
         const mt = !typeFilter || app.type === typeFilter;
         const mst = !statusFilter || (statusFilter === 'running' && app.running) || (statusFilter === 'stopped' && !app.running);
@@ -227,13 +227,13 @@
     }
 
     function openRunCliModal(appId) {
-      const app = allApps.find(a => a.id === appId);
+      const app = appsPageApps.find(a => a.id === appId);
       if (!app) { showNotification('error', 'App not found'); return; }
       showRunCliModal(app);
     }
 
     function openRunHistoryModal(appId) {
-      const app = allApps.find(a => a.id === appId);
+      const app = appsPageApps.find(a => a.id === appId);
       if (!app) { showNotification('error', 'App not found'); return; }
       showRunHistoryModal(app);
     }
