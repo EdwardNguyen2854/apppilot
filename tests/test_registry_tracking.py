@@ -1,13 +1,19 @@
 import json
+import os
+import re
+import shutil
+import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from fastapi.testclient import TestClient
+import pytest
 
 from backend.app import create_app
 from backend.core.app_registry import AppRegistryService
 from backend.core.config import Config
 from backend.core.database import Database
+from backend.routes.web_tracking import _rewrite_html, _tracked_location
 
 
 def make_config(tmp_path, apps=None):
@@ -99,6 +105,10 @@ class TrackingHandler(BaseHTTPRequestHandler):
             body = b'{"items": []}'
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
+        elif self.path == "/plain-action":
+            body = b"completed"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
         else:
             body = b"not found"
             self.send_response(404)
@@ -130,8 +140,9 @@ def test_tracked_web_proxy_rewrites_html_and_records_api_calls(tmp_path):
         with TestClient(create_app(config, database)) as client:
             page = client.get("/tracked/tracked-web/", headers={"host": "tracked.localhost"})
             assert page.status_code == 200
-            assert '/tracked/tracked-web/main.js' in page.text
+            assert '/tracked/tracked-web/__apppilot_origin__/main.js' in page.text
             assert "window.fetch" in page.text
+            assert f"const upstream='http://127.0.0.1:{port}'" in page.text
 
             api_response = client.get("/tracked/tracked-web/api/items", headers={"host": "tracked.localhost"})
             assert api_response.status_code == 200
@@ -141,6 +152,15 @@ def test_tracked_web_proxy_rewrites_html_and_records_api_calls(tmp_path):
             details = json.loads(events[0]["details_json"])
             assert details["route"] == "/api/items"
             assert details["status_code"] == 200
+
+            plain_response = client.get(
+                "/tracked/tracked-web/__apppilot_origin__/plain-action",
+                headers={"host": "tracked.localhost", "x-apppilot-activity": "fetch"},
+            )
+            assert plain_response.status_code == 200
+            events = client.get("/api/usage/events?app_id=tracked-web").json()["events"]
+            assert len(events) == 2
+            assert json.loads(events[0]["details_json"])["route"] == "/plain-action"
             blocked = client.get("/api/apps", headers={"host": "tracked.localhost"})
             assert blocked.status_code == 403
             csrf = client.post(
@@ -152,3 +172,52 @@ def test_tracked_web_proxy_rewrites_html_and_records_api_calls(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+def test_tracking_bridge_routes_requests_without_marking_external_calls():
+    if not shutil.which("node"):
+        pytest.skip("Node is required to execute the injected browser bridge")
+    html = _rewrite_html(
+        b"<html><head></head></html>",
+        "tracked-web",
+        "utf-8",
+        "http://127.0.0.1:8788/base/",
+    ).decode()
+    bridge = re.search(r"<script>([\s\S]*?)</script>", html).group(1)
+    script = r'''
+const calls=[];
+global.window=global;
+global.location=new URL('http://tracked.localhost:9700/tracked/tracked-web/');
+global.fetch=(input,options)=>{calls.push({url:input instanceof Request?input.url:String(input),marker:options&&new Headers(options.headers).get('X-AppPilot-Activity')});return Promise.resolve({});};
+class XHR { open(method,url){this.url=url;} setRequestHeader(key,value){this.marker=value;} send(){calls.push({url:this.url,marker:this.marker});} }
+global.XMLHttpRequest=XHR;
+eval(process.env.BRIDGE);
+(async()=>{
+  await fetch('/plain-action');
+  await fetch(new Request('http://tracked.localhost:9700/request-action',{method:'POST',body:'x'}));
+  await fetch('http://127.0.0.1:8788/absolute-action');
+  await fetch('https://external.test/data');
+  const xhr=new XMLHttpRequest();xhr.open('GET','/xhr-action');xhr.send();
+  const externalXhr=new XMLHttpRequest();externalXhr.open('GET','https://external.test/xhr');externalXhr.send();
+  const expected=[
+    ['/tracked/tracked-web/__apppilot_origin__/plain-action','fetch'],
+    ['http://tracked.localhost:9700/tracked/tracked-web/__apppilot_origin__/request-action','fetch'],
+    ['/tracked/tracked-web/__apppilot_origin__/absolute-action','fetch'],
+    ['https://external.test/data',null],
+    ['/tracked/tracked-web/__apppilot_origin__/xhr-action','xhr'],
+    ['https://external.test/xhr',null],
+  ];
+  if(JSON.stringify(calls.map(c=>[c.url,c.marker]))!==JSON.stringify(expected)){console.error(calls);process.exit(1);}
+})().catch(error=>{console.error(error);process.exit(1);});
+'''
+    env = dict(os.environ, BRIDGE=bridge)
+    subprocess.run(["node", "-e", script], env=env, check=True, capture_output=True, text=True)
+
+
+def test_tracked_redirect_preserves_root_and_base_relative_locations():
+    base_url = "http://127.0.0.1:8788/base/"
+
+    assert _tracked_location("/login", base_url, "web") == "/tracked/web/__apppilot_origin__/login"
+    assert _tracked_location("next", base_url, "web") == "next"
+    assert _tracked_location("../login", base_url, "web") == "../login"
+    assert _tracked_location("https://external.test/login", base_url, "web") == "https://external.test/login"
