@@ -169,6 +169,8 @@ def init_apps_router(process_manager, database, config, monitor, mcp_manager=Non
                 'description': app.get('description', ''),
                 'port': app.get('port'),
                 'url': app.get('url'),
+                'tracked_url': f"/tracked/{app_id}/" if app.get('type') == 'web' and app.get('url') else None,
+                'args': app.get('args', []),
                 'running': status.get('running', False),
                 'status': 'online' if status.get('running') else 'offline',
                 'pid': status.get('pid'),

@@ -52,6 +52,26 @@
         </div>
       </div>
 
+      <section class="registry-toolbar" aria-label="App registry tools">
+        <div class="registry-actions">
+          <button class="btn btn-primary" onclick="detectApps()">Auto-detect Apps</button>
+          <button class="btn btn-secondary" onclick="reloadRegistry()">Reload apps.json</button>
+        </div>
+        <div class="registry-actions">
+          <label for="dummy-type" class="registry-label">Dummy type</label>
+          <select id="dummy-type" class="filter-select">
+            <option value="web">Web</option>
+            <option value="api">API</option>
+            <option value="desktop">Desktop</option>
+            <option value="cli">CLI</option>
+            <option value="mcp">MCP</option>
+          </select>
+          <button class="btn btn-success" onclick="addDummyTool()">Add Dummy Tool</button>
+          <button class="btn btn-danger" onclick="removeDummyTools()">Remove All Dummy Tools</button>
+        </div>
+      </section>
+      <section id="discovery-panel" class="discovery-panel" hidden aria-live="polite"></section>
+
       <!-- Summary Cards -->
       <div class="summary-cards">
         <div class="summary-card">
@@ -113,6 +133,7 @@
   <script src="/static/js/app.js"></script>
   <script>
     let allApps = [];
+    let discoveredApps = [];
 
     document.addEventListener('DOMContentLoaded', function() { loadAllApps(); loadSessions(); });
 
@@ -152,6 +173,7 @@
               <button class="btn btn-sm btn-danger" onclick="stopApp('${app.id}')">Stop</button>
               <button class="btn btn-sm btn-warning" onclick="restartApp('${app.id}')">Restart</button>
               ${app.url ? `<button class="btn btn-sm btn-primary" onclick="openUrl('${app.url}')">Open</button>` : ''}
+              ${app.tracked_url ? `<button class="btn btn-sm btn-secondary" onclick="openUrl('${app.tracked_url}')">Open + Track</button>` : ''}
             ` : `
               <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
             `}
@@ -214,6 +236,98 @@
       const app = allApps.find(a => a.id === appId);
       if (!app) { showNotification('error', 'App not found'); return; }
       showRunHistoryModal(app);
+    }
+
+    async function registryRequest(url, options, successAction) {
+      try {
+        const response = await fetch(url, options);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Request failed');
+        showNotification('success', data.message || 'Registry updated');
+        if (successAction) successAction(data);
+        loadAllApps();
+      } catch (error) {
+        showNotification('error', error.message || 'Registry update failed');
+      }
+    }
+
+    function reloadRegistry() {
+      registryRequest('/api/registry/reload', { method: 'POST' });
+    }
+
+    async function detectApps() {
+      const panel = document.getElementById('discovery-panel');
+      panel.hidden = false;
+      panel.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>Scanning apps directory...</span></div>';
+      try {
+        const response = await fetch('/api/registry/discover');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Detection failed');
+        discoveredApps = data.suggestions || [];
+        renderSuggestions();
+      } catch (error) {
+        panel.innerHTML = `<p class="error-cell">${escapeHtml(error.message || 'Detection failed')}</p>`;
+      }
+    }
+
+    function renderSuggestions() {
+      const panel = document.getElementById('discovery-panel');
+      if (discoveredApps.length === 0) {
+        panel.innerHTML = '<div class="discovery-heading"><strong>No unregistered apps found</strong><button class="btn btn-sm btn-ghost" onclick="closeDiscovery()">Close</button></div><p class="text-muted">Every launchable folder under apps/ is already registered.</p>';
+        return;
+      }
+      panel.innerHTML = `
+        <div class="discovery-heading"><strong>Suggested registrations</strong><button class="btn btn-sm btn-ghost" onclick="closeDiscovery()">Close</button></div>
+        <div class="suggestion-list">${discoveredApps.map((app, index) => `
+          <div class="suggestion-row">
+            <div><span class="app-name">${escapeHtml(app.name)}</span><span class="suggestion-path">${escapeHtml(app.exe)}</span></div>
+            <span class="type-badge type-${app.type}">${escapeHtml(app.type)}</span>
+            <button class="btn btn-sm btn-primary" onclick="registerSuggestion(${index})">Register</button>
+          </div>`).join('')}
+        </div>`;
+    }
+
+    function closeDiscovery() {
+      document.getElementById('discovery-panel').hidden = true;
+    }
+
+    function registerSuggestion(index) {
+      const suggestion = discoveredApps[index];
+      if (!suggestion) return;
+      if ((suggestion.type === 'web' || suggestion.type === 'api') && !suggestion.port) {
+        const rawPort = prompt(`Port for ${suggestion.name} (Cancel to review later):`, '8000');
+        if (rawPort === null) return;
+        const port = Number(rawPort);
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+          showNotification('error', 'Enter a valid port between 1 and 65535');
+          return;
+        }
+        suggestion.port = port;
+        suggestion.url = `http://127.0.0.1:${port}`;
+        suggestion.health_url = `${suggestion.url}/health`;
+      }
+      registryRequest('/api/registry/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(suggestion),
+      }, () => {
+        discoveredApps.splice(index, 1);
+        renderSuggestions();
+      });
+    }
+
+    function addDummyTool() {
+      const type = document.getElementById('dummy-type').value;
+      registryRequest('/api/registry/dummy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+    }
+
+    function removeDummyTools() {
+      if (!confirm('Remove all dummy tools from apps.json and delete their folders? Historical usage data will be kept.')) return;
+      registryRequest('/api/registry/dummy', { method: 'DELETE' });
     }
   </script>
 </body>

@@ -1079,6 +1079,96 @@ body {
   gap: 8px;
 }
 
+/* -- Registry management -- */
+.registry-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.registry-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.registry-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.discovery-panel {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+}
+
+.discovery-heading,
+.suggestion-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.discovery-heading {
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.suggestion-list {
+  display: grid;
+  gap: 8px;
+}
+
+.suggestion-row {
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.suggestion-row > div {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-path {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .registry-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .registry-actions .btn,
+  .registry-actions .filter-select {
+    flex: 1;
+  }
+
+  .suggestion-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 /* -- MCP -- */
 .server-selector {
   display: flex;

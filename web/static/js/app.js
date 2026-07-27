@@ -426,6 +426,7 @@ function createAppCardHTML(app) {
           <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); stopApp('${app.id}')">Stop</button>
           <button class="btn btn-sm btn-warning" onclick="event.stopPropagation(); restartApp('${app.id}')">Restart</button>
           ${app.url ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openUrl('${app.url}')">Open</button>` : ''}
+          ${app.tracked_url ? `<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); openUrl('${app.tracked_url}')">Open + Track</button>` : ''}
         ` : `
           <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); startApp('${app.id}')">Start</button>
         `}
@@ -474,6 +475,7 @@ function renderAppsList(apps) {
             <button class="btn btn-sm btn-danger" onclick="stopApp('${app.id}')">Stop</button>
             <button class="btn btn-sm btn-warning" onclick="restartApp('${app.id}')">Restart</button>
             ${app.url ? `<button class="btn btn-sm btn-primary" onclick="openUrl('${app.url}')">Open</button>` : ''}
+            ${app.tracked_url ? `<button class="btn btn-sm btn-secondary" onclick="openUrl('${app.tracked_url}')">Open + Track</button>` : ''}
           ` : `
             <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
           `}
@@ -518,6 +520,7 @@ function renderAppsTable(apps) {
             <button class="btn btn-sm btn-danger" onclick="stopApp('${app.id}')">Stop</button>
             <button class="btn btn-sm btn-warning" onclick="restartApp('${app.id}')">Restart</button>
             ${app.url ? `<button class="btn btn-sm btn-primary" onclick="openUrl('${app.url}')">Open</button>` : ''}
+            ${app.tracked_url ? `<button class="btn btn-sm btn-secondary" onclick="openUrl('${app.tracked_url}')">Open + Track</button>` : ''}
           ` : `
             <button class="btn btn-sm btn-success" onclick="startApp('${app.id}')">Start</button>
           `}
@@ -595,7 +598,15 @@ function showSessionsModal(appId, sessions) {
 }
 
 // -- Utilities --
-function openUrl(url) { window.open(url, '_blank'); }
+function openUrl(url) {
+  if (url.startsWith('/tracked/')) {
+    const tracked = new URL(url, window.location.href);
+    tracked.hostname = 'tracked.localhost';
+    window.open(tracked.href, '_blank');
+    return;
+  }
+  window.open(url, '_blank');
+}
 function openMCPTools(appId) { window.location.href = `/web/mcp.html?server=${encodeURIComponent(appId)}`; }
 
 function getAppIcon(type) {

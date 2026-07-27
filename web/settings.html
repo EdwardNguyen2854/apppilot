@@ -60,6 +60,10 @@
           <div class="setting-info"><label>Configured Apps</label><p class="setting-description">Apps in registry</p></div>
           <div class="setting-value"><span id="app-count">--</span></div>
         </div>
+        <div class="setting-actions">
+          <button class="btn btn-secondary" onclick="reloadRegistry()">Reload apps.json</button>
+          <a class="btn btn-primary" href="/web/apps.html">Manage Apps</a>
+        </div>
         <div class="setting-item">
           <div class="setting-info"><label>Data Directory</label><p class="setting-description">Database storage</p></div>
           <div class="setting-value"><code>data/</code></div>
@@ -124,6 +128,18 @@
     function clearOldData() {
       if (confirm('Remove usage data older than 90 days?')) {
         fetch('/api/usage/data?days=90', { method: 'DELETE' }).then(r=>r.json()).then(d => showNotification('success', `Cleared ${d.deleted||0} records`)).catch(() => showNotification('error','Failed'));
+      }
+    }
+
+    async function reloadRegistry() {
+      try {
+        const response = await fetch('/api/registry/reload', { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Reload failed');
+        document.getElementById('app-count').textContent = data.total;
+        showNotification('success', data.message);
+      } catch (error) {
+        showNotification('error', error.message || 'Reload failed');
       }
     }
 

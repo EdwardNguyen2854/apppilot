@@ -27,7 +27,8 @@ VALID_EVENTS = {
     'export_clicked', 'export_success', 'export_failed', 'api_called',
     'tool_called', 'tool_success', 'tool_failed', 'error_happened',
     'feature_used', 'button_clicked', 'settings_changed',
-    'session_started', 'session_ended'
+    'session_started', 'session_ended', 'web_api_called', 'mcp_tool_called',
+    'cli_tool_run'
 }
 
 

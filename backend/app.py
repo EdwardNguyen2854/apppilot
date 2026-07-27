@@ -9,6 +9,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -109,7 +110,7 @@ def create_app(config=None, database=None):
     from backend.core.monitor import Monitor
     from backend.core.mcp_client import MCPManager
     from backend.core.cli_runner import CliRunner
-    from backend.routes import apps_router, usage_router, events_router, admin_router, init_apps_router, init_usage_router, init_events_router, init_admin_router
+    from backend.routes import init_apps_router, init_usage_router, init_events_router, init_admin_router, init_registry_router, init_web_tracking_router
 
     app = FastAPI(
         title="AppPilot",
@@ -141,6 +142,23 @@ def create_app(config=None, database=None):
         allow_headers=["*"],
     )
 
+    @app.middleware("http")
+    async def isolate_tracked_web_apps(request: Request, call_next):
+        """Keep proxied app code on an origin that cannot reach management APIs."""
+        tracked_host = request.url.hostname == "tracked.localhost"
+        tracked_path = request.url.path.startswith("/tracked/")
+        if tracked_host != tracked_path:
+            return JSONResponse(status_code=403, content={"detail": "Tracked app origin required"})
+        return await call_next(request)
+
+    @app.middleware("http")
+    async def block_tracked_app_csrf(request: Request, call_next):
+        if request.url.path.startswith("/api/") and request.method not in {"GET", "HEAD", "OPTIONS"}:
+            source = request.headers.get("origin") or request.headers.get("referer")
+            if source and urlsplit(source).hostname == "tracked.localhost":
+                return JSONResponse(status_code=403, content={"detail": "Tracked apps cannot modify AppPilot"})
+        return await call_next(request)
+
     template_dir = Path(__file__).parent.parent / "web"
     templates = Jinja2Templates(directory=str(template_dir))
 
@@ -156,11 +174,15 @@ def create_app(config=None, database=None):
     usage_router_configured = init_usage_router(database, config)
     events_router_configured = init_events_router(database, config)
     admin_router_configured = init_admin_router(database, config)
+    registry_router_configured = init_registry_router(process_manager, config, mcp_manager, database, monitor)
+    web_tracking_router_configured = init_web_tracking_router(database, config)
 
     app.include_router(apps_router_configured)
     app.include_router(usage_router_configured)
     app.include_router(events_router_configured)
     app.include_router(admin_router_configured)
+    app.include_router(registry_router_configured)
+    app.include_router(web_tracking_router_configured)
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
