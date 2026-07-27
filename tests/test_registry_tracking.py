@@ -109,6 +109,10 @@ class TrackingHandler(BaseHTTPRequestHandler):
             body = b"completed"
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
+        elif self.path.startswith("/api/pdf?"):
+            body = b"%PDF-1.4 test"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
         else:
             body = b"not found"
             self.send_response(404)
@@ -161,6 +165,17 @@ def test_tracked_web_proxy_rewrites_html_and_records_api_calls(tmp_path):
             events = client.get("/api/usage/events?app_id=tracked-web").json()["events"]
             assert len(events) == 2
             assert json.loads(events[0]["details_json"])["route"] == "/plain-action"
+
+            pdf_response = client.get(
+                "/tracked/tracked-web/__apppilot_origin__/api/pdf?relative_path=123.pdf",
+                headers={"host": "tracked.localhost"},
+            )
+            assert pdf_response.status_code == 200
+            events = client.get("/api/usage/events?app_id=tracked-web").json()["events"]
+            assert len(events) == 3
+            pdf_details = json.loads(events[0]["details_json"])
+            assert pdf_details["route"] == "/api/pdf"
+            assert "relative_path" not in pdf_details
             blocked = client.get("/api/apps", headers={"host": "tracked.localhost"})
             assert blocked.status_code == 403
             csrf = client.post(

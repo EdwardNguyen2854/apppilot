@@ -58,15 +58,15 @@ def init_web_tracking_router(database, config):
 
         duration_ms = int((time.perf_counter() - started) * 1000)
         content_type = upstream.headers.get("content-type", "")
+        activity_path = path[len(ORIGIN_PATH_PREFIX):] if path.startswith(ORIGIN_PATH_PREFIX) else path
         is_api_call = (
             request.headers.get("x-apppilot-activity") in {"fetch", "xhr"}
             or
-            path.lstrip("/").startswith("api/")
+            activity_path.lstrip("/").startswith("api/")
             or "application/json" in content_type
             or request.method not in {"GET", "HEAD", "OPTIONS"}
         )
         if is_api_call and database is not None:
-            activity_path = path[len(ORIGIN_PATH_PREFIX):] if path.startswith(ORIGIN_PATH_PREFIX) else path
             try:
                 database.record_usage_event(
                     app_id=app_id,
